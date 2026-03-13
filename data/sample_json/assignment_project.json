@@ -1,0 +1,19 @@
+[
+  {
+    "project_id": "project_001",
+    "person_id": "person_001",
+    "project_name": "FinBank Risk Data Modernization",
+    "client_name": "FinBank",
+    "domain": "BFSI",
+    "role_on_project": "Solution Lead",
+    "start_date": "2025-02-01",
+    "end_date": "2025-12-15",
+    "project_summary": "Modernized reporting and risk pipelines for quarterly regulatory submissions.",
+    "confidence": 0.88,
+    "source_provenance": {
+      "source_type": "project_system",
+      "source_system": "delivery_tracker",
+      "source_record_id": "proj_447"
+    }
+  }
+]

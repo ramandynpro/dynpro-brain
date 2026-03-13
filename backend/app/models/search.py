@@ -1,0 +1,33 @@
+from datetime import datetime
+
+from pydantic import BaseModel, Field
+
+
+class SearchQuery(BaseModel):
+    workflow: str = Field(
+        default="expert_finder",
+        description="Phase 1 workflow identifier such as expert_finder.",
+    )
+    text_query: str = Field(..., description="Plain language request from user.")
+    skill_filters: list[str] = Field(default_factory=list)
+    domain_filters: list[str] = Field(default_factory=list)
+    location: str | None = None
+    timezone: str | None = None
+
+
+class Recommendation(BaseModel):
+    person_id: str
+    full_name: str
+    role: str
+    confidence_score: float = Field(ge=0, le=1)
+    why_recommended: list[str]
+    evidence_ids: list[str]
+    uncertainties: list[str]
+    next_action: str
+    last_updated_at: datetime
+
+
+class SearchResponse(BaseModel):
+    query: SearchQuery
+    recommendations: list[Recommendation]
+    notes: list[str]
