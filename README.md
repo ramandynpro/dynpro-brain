@@ -80,9 +80,19 @@ In the UI:
 
 The backend applies these structured filters directly to the sample JSON records before ranking and returning results. Client/domain filtering checks assignment/project history first, and also uses person-level `top_clients` and `top_domains` when present. Availability gives a small ranking boost to people who are more available sooner. Budget fit also gives a small ranking boost when a person is comfortably within the selected budget constraints. Client/domain relevance gives a small ranking boost and is called out in recommendation explanations when it changes rank. Relationship edges from `relationship_edge.json` now also add a small ranking boost when you provide `worked with person name` (or the API `worked_with_person_id`) and a candidate has `worked_with` evidence linked to that person. When interviewer search is relevant, interviewer readiness also gives a small ranking boost and is called out in the explanation. For POC support finder workflows, POC readiness (willingness, prior POC/presales participation, and client-facing comfort) now also gives a small ranking boost and is called out in the explanation.
 
+There is also a simple **confidence layer** on each recommendation (kept separate from ranking logic):
+- `confidence_score`: transparent score using evidence count, evidence confidence, evidence freshness, and whether `last_verified_at` is present
+- `confidence_band`: `high`, `medium`, or `low`
+- `evidence_count`: number of workflow-tagged evidence records used
+- `freshness_summary`: plain-English freshness readout for supporting evidence
+- `source_mix`: simple count of source types involved in the recommendation context
+
+The explanation text now includes confidence/freshness context so reviewers can quickly see when stale or sparse evidence lowers trust.
+
 For Phase 1 privacy, UI recommendations keep commercial output light and use budget-fit wording instead of exposing raw commercial details.
 
 You will see recommendation(s) built from the sample JSON files in `data/sample_json/` with:
+- confidence band and freshness summary
 - why recommended
 - evidence IDs
 - uncertainties

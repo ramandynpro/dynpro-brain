@@ -166,6 +166,12 @@ if st.button("Run Search"):
                 with st.container(border=True):
                     st.markdown(f"### {rec['full_name']} ({rec['role']})")
                     st.write(f"Confidence: **{rec['confidence_score']}**")
+                    st.write(f"Confidence band: **{rec['confidence_band'].upper()}**")
+                    st.write(f"Evidence count: **{rec['evidence_count']}**")
+                    st.write(f"Freshness: **{rec['freshness_summary']}**")
+                    if rec.get("source_mix"):
+                        st.write("Source mix:")
+                        st.json(rec["source_mix"])
                     st.write("**Why recommended**")
                     st.write(rec["why_recommended"])
                     st.write("**Evidence IDs**")

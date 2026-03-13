@@ -227,6 +227,102 @@ def _availability_rank_boost(availability_percent: int, effective_from: date | N
     return percent_boost
 
 
+def _days_old_from_iso_date(value: str | None) -> int | None:
+    parsed_date = _parse_iso_date(value)
+    if not parsed_date:
+        return None
+    return max((datetime.now(timezone.utc).date() - parsed_date).days, 0)
+
+
+def _freshness_label(days_old: int) -> str:
+    if days_old <= 90:
+        return "fresh"
+    if days_old <= 180:
+        return "aging"
+    return "stale"
+
+
+def _confidence_band(confidence_score: float) -> str:
+    if confidence_score >= 0.75:
+        return "high"
+    if confidence_score >= 0.5:
+        return "medium"
+    return "low"
+
+
+def _build_confidence_layer(
+    person: dict,
+    evidence: list[dict],
+    assignments: list[dict],
+) -> tuple[float, str, str, int]:
+    evidence_count = len(evidence)
+    if evidence_count == 0:
+        freshness_summary = "No workflow-tagged evidence yet."
+        freshness_score = 0.35
+    else:
+        evidence_ages = [
+            _days_old_from_iso_date(str(item.get("observed_at", "")))
+            for item in evidence
+        ]
+        valid_ages = [age for age in evidence_ages if age is not None]
+        if valid_ages:
+            average_days = int(sum(valid_ages) / len(valid_ages))
+            label = _freshness_label(average_days)
+            freshness_summary = (
+                f"{label.title()} evidence (avg age ~{average_days} days across {len(valid_ages)} record(s))."
+            )
+            freshness_score = max(0.2, 1 - (average_days / 365))
+        else:
+            freshness_summary = "Evidence dates missing; freshness cannot be fully verified."
+            freshness_score = 0.45
+
+    evidence_confidences = [float(item.get("confidence", 0.5)) for item in evidence]
+    assignment_confidences = [float(item.get("confidence", 0.5)) for item in assignments]
+    profile_confidence = float(person.get("profile_confidence", 0.5))
+    profile_verified = bool(person.get("last_verified_at"))
+
+    average_evidence_confidence = (
+        sum(evidence_confidences) / len(evidence_confidences) if evidence_confidences else 0.5
+    )
+    average_assignment_confidence = (
+        sum(assignment_confidences) / len(assignment_confidences) if assignment_confidences else 0.5
+    )
+    evidence_count_score = min(1.0, evidence_count / 5)
+    metadata_score = 1.0 if profile_verified else 0.6
+
+    confidence_score = round(
+        (
+            (evidence_count_score * 0.2)
+            + (average_evidence_confidence * 0.3)
+            + (average_assignment_confidence * 0.1)
+            + (freshness_score * 0.25)
+            + (metadata_score * 0.1)
+            + (profile_confidence * 0.05)
+        ),
+        2,
+    )
+    confidence_band = _confidence_band(confidence_score)
+    return confidence_score, confidence_band, freshness_summary, evidence_count
+
+
+def _build_source_mix(person: dict, evidence: list[dict], assignments: list[dict], commercial: dict | None) -> dict[str, int]:
+    source_mix: dict[str, int] = {}
+
+    def _add_source(source_type: str | None) -> None:
+        key = str(source_type or "unknown").strip().lower() or "unknown"
+        source_mix[key] = source_mix.get(key, 0) + 1
+
+    _add_source((person.get("source_provenance") or {}).get("source_type"))
+    for item in evidence:
+        _add_source((item.get("metadata") or {}).get("validated_by") or "skill_evidence")
+    for item in assignments:
+        _add_source((item.get("source_provenance") or {}).get("source_type"))
+    if commercial:
+        _add_source((commercial.get("source_provenance") or {}).get("source_type"))
+
+    return source_mix
+
+
 def _budget_band_limit(budget_band: str | None) -> float | None:
     if not budget_band:
         return None
@@ -308,7 +404,7 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
     """
 
     data = load_sample_data()
-    recommendations: list[Recommendation] = []
+    scored_recommendations: list[tuple[float, Recommendation]] = []
     relationship_lookup = _build_relationship_lookup(data.relationship_edges)
 
     target_person_id = query.worked_with_person_id
@@ -402,13 +498,23 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
         if not _contains_any(combined_text, query.domain_filters):
             continue
 
-        confidence_parts = [float(person.get("profile_confidence", 0.5))]
-        confidence_parts.extend(float(item.get("confidence", 0.5)) for item in evidence)
-        confidence_parts.extend(float(item.get("confidence", 0.5)) for item in assignments)
-        if commercial:
-            confidence_parts.append(float(commercial.get("confidence", 0.5)))
+        confidence_score, confidence_band, freshness_summary, evidence_count = _build_confidence_layer(
+            person=person,
+            evidence=evidence,
+            assignments=assignments,
+        )
+        source_mix = _build_source_mix(person, evidence, assignments, commercial)
 
-        confidence = round(sum(confidence_parts) / max(len(confidence_parts), 1), 2)
+        legacy_confidence_parts = [float(person.get("profile_confidence", 0.5))]
+        legacy_confidence_parts.extend(float(item.get("confidence", 0.5)) for item in evidence)
+        legacy_confidence_parts.extend(float(item.get("confidence", 0.5)) for item in assignments)
+        if commercial:
+            legacy_confidence_parts.append(float(commercial.get("confidence", 0.5)))
+
+        ranking_score = round(
+            sum(legacy_confidence_parts) / max(len(legacy_confidence_parts), 1),
+            2,
+        )
         availability_boost = _availability_rank_boost(availability_percent, available_from_date)
         budget_boost = _budget_fit_rank_boost(bill_rate, budget_limit)
         client_domain_boost, client_domain_reasons = _client_domain_rank_boost(
@@ -447,10 +553,10 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
             target_person_id=target_person_id,
         )
 
-        confidence = round(
+        ranking_score = round(
             min(
                 1.0,
-                confidence
+                ranking_score
                 + availability_boost
                 + budget_boost
                 + client_domain_boost
@@ -511,18 +617,27 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
             relationship_reason += ")."
             why_recommended.append(relationship_reason)
 
+        why_recommended.append(
+            "Confidence layer summary: "
+            f"{confidence_band} confidence ({confidence_score}) with {evidence_count} evidence record(s); "
+            f"freshness check: {freshness_summary.lower()}"
+        )
+
         uncertainties = [
             "Validate latest availability with delivery lead before staffing.",
         ]
         if commercial and commercial.get("availability_note"):
             uncertainties.append(str(commercial["availability_note"]))
 
-        recommendations.append(
-            Recommendation(
+        recommendation = Recommendation(
                 person_id=person_id,
                 full_name=str(person.get("full_name", "Unknown")),
                 role=str(person.get("current_role", "Unknown role")),
-                confidence_score=confidence,
+                confidence_score=confidence_score,
+                confidence_band=confidence_band,
+                evidence_count=evidence_count,
+                freshness_summary=freshness_summary,
+                source_mix=source_mix,
                 why_recommended=why_recommended,
                 evidence_ids=[
                     str(item.get("evidence_id"))
@@ -540,9 +655,10 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
                     str(person.get("profile_last_updated_at", ""))
                 ),
             )
-        )
+        scored_recommendations.append((ranking_score, recommendation))
 
-    return sorted(recommendations, key=lambda item: item.confidence_score, reverse=True)
+    sorted_scored_recommendations = sorted(scored_recommendations, key=lambda item: item[0], reverse=True)
+    return [item[1] for item in sorted_scored_recommendations]
 
 
 def build_pod_for_query(query: SearchQuery) -> dict:
