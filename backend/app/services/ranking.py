@@ -4,6 +4,13 @@ from app.models.search import Recommendation, SearchQuery
 from app.services.sample_data import load_sample_data
 
 
+BUDGET_BAND_LIMITS = {
+    "economy": 110.0,
+    "standard": 130.0,
+    "premium": 160.0,
+}
+
+
 def _contains_any(haystack: str, needles: list[str]) -> bool:
     if not needles:
         return True
@@ -49,6 +56,26 @@ def _availability_rank_boost(availability_percent: int, effective_from: date | N
     return percent_boost
 
 
+def _budget_band_limit(budget_band: str | None) -> float | None:
+    if not budget_band:
+        return None
+    return BUDGET_BAND_LIMITS.get(budget_band.strip().lower())
+
+
+def _budget_fit_rank_boost(bill_rate: float | None, max_bill_rate: float | None) -> float:
+    if bill_rate is None or max_bill_rate is None or max_bill_rate <= 0:
+        return 0.0
+
+    utilization = bill_rate / max_bill_rate
+    if utilization <= 0.8:
+        return 0.03
+    if utilization <= 0.95:
+        return 0.015
+    if utilization <= 1:
+        return 0.005
+    return 0.0
+
+
 def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
     """
     Simple phase-1 ranking using sample JSON data.
@@ -88,6 +115,17 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
 
         availability_percent = int((commercial or {}).get("availability_percent", 0))
         available_from_date = _parse_iso_date((commercial or {}).get("effective_from"))
+        bill_rate = float((commercial or {}).get("bill_rate_usd", 0)) if commercial else None
+
+        budget_limit = query.max_bill_rate
+        band_limit = _budget_band_limit(query.budget_band)
+        if budget_limit is None and band_limit is not None:
+            budget_limit = band_limit
+        elif budget_limit is not None and band_limit is not None:
+            budget_limit = min(budget_limit, band_limit)
+
+        if budget_limit is not None and (bill_rate is None or bill_rate > budget_limit):
+            continue
 
         if (
             query.minimum_available_percent is not None
@@ -121,7 +159,8 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
 
         confidence = round(sum(confidence_parts) / max(len(confidence_parts), 1), 2)
         availability_boost = _availability_rank_boost(availability_percent, available_from_date)
-        confidence = round(min(1.0, confidence + availability_boost), 2)
+        budget_boost = _budget_fit_rank_boost(bill_rate, budget_limit)
+        confidence = round(min(1.0, confidence + availability_boost + budget_boost), 2)
 
         why_recommended = [
             "Profile summary and project history match the current request context.",
@@ -141,6 +180,10 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
                 availability_detail += f" from {available_from_date.isoformat()}"
             why_recommended.append(
                 f"Availability influenced ranking with a small boost ({availability_detail})."
+            )
+        if budget_boost > 0 and budget_limit is not None:
+            why_recommended.append(
+                "Budget fit influenced ranking with a small boost (good fit to selected budget constraints)."
             )
 
         uncertainties = [

@@ -18,6 +18,8 @@ class SearchQuery(BaseModel):
     practice: str | None = None
     minimum_available_percent: int | None = Field(default=None, ge=0, le=100)
     available_by_date: date | None = None
+    max_bill_rate: float | None = Field(default=None, gt=0)
+    budget_band: str | None = None
 
 
 class Recommendation(BaseModel):
