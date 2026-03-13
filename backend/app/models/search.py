@@ -16,6 +16,8 @@ class SearchQuery(BaseModel):
     location: str | None = None
     timezone: str | None = None
     practice: str | None = None
+    client_name: str | None = None
+    domain_name: str | None = None
     minimum_available_percent: int | None = Field(default=None, ge=0, le=100)
     available_by_date: date | None = None
     max_bill_rate: float | None = Field(default=None, gt=0)

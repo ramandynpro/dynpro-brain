@@ -18,7 +18,15 @@
     "interviewer_suitable": true,
     "willing_to_interview": true,
     "prior_interview_count": 14,
-    "client_facing_comfort": "high"
+    "client_facing_comfort": "high",
+    "top_clients": [
+      "FinBank",
+      "RetailBank"
+    ],
+    "top_domains": [
+      "BFSI",
+      "Risk & Compliance"
+    ]
   },
   {
     "person_id": "person_002",
@@ -39,6 +47,12 @@
     "interviewer_suitable": true,
     "willing_to_interview": false,
     "prior_interview_count": 3,
-    "client_facing_comfort": "medium"
+    "client_facing_comfort": "medium",
+    "top_clients": [
+      "RetailBank"
+    ],
+    "top_domains": [
+      "BFSI"
+    ]
   }
 ]

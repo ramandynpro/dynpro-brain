@@ -24,6 +24,52 @@ def _matches_filter(value: str | None, requested: str | None) -> bool:
     return str(value or "").strip().lower() == requested.strip().lower()
 
 
+def _matches_requested_name(value: str | None, requested: str | None) -> bool:
+    if not requested:
+        return True
+    return requested.strip().lower() in str(value or "").strip().lower()
+
+
+def _normalized_values(values: list[str] | None) -> set[str]:
+    return {str(value).strip().lower() for value in values or [] if str(value).strip()}
+
+
+def _client_domain_rank_boost(
+    assignments: list[dict],
+    top_clients: list[str] | None,
+    top_domains: list[str] | None,
+    client_name: str | None,
+    domain_name: str | None,
+) -> tuple[float, list[str]]:
+    boost = 0.0
+    reasons: list[str] = []
+
+    requested_client = (client_name or "").strip().lower()
+    requested_domain = (domain_name or "").strip().lower()
+
+    assignment_clients = {
+        str(item.get("client_name", "")).strip().lower()
+        for item in assignments
+        if str(item.get("client_name", "")).strip()
+    }
+    assignment_domains = {
+        str(item.get("domain", "")).strip().lower()
+        for item in assignments
+        if str(item.get("domain", "")).strip()
+    }
+    top_client_values = _normalized_values(top_clients)
+    top_domain_values = _normalized_values(top_domains)
+
+    if requested_client and (requested_client in assignment_clients or requested_client in top_client_values):
+        boost += 0.02
+        reasons.append(f"client match: {client_name}")
+    if requested_domain and (requested_domain in assignment_domains or requested_domain in top_domain_values):
+        boost += 0.02
+        reasons.append(f"domain match: {domain_name}")
+
+    return boost, reasons
+
+
 def _country_from_location(location: str | None) -> str:
     if not location:
         return ""
@@ -99,6 +145,9 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
             None,
         )
 
+        top_clients = person.get("top_clients") if isinstance(person.get("top_clients"), list) else []
+        top_domains = person.get("top_domains") if isinstance(person.get("top_domains"), list) else []
+
         person_timezone = str(person.get("timezone", ""))
         person_country = _country_from_location(str(person.get("home_location", "")))
         internal_external = str(person.get("internal_external", "internal"))
@@ -112,6 +161,22 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
             continue
         if not _matches_filter(practice, query.practice):
             continue
+
+        if query.client_name:
+            has_client_match = any(
+                _matches_requested_name(str(item.get("client_name", "")), query.client_name)
+                for item in assignments
+            ) or any(_matches_requested_name(str(client), query.client_name) for client in top_clients)
+            if not has_client_match:
+                continue
+
+        if query.domain_name:
+            has_domain_match = any(
+                _matches_requested_name(str(item.get("domain", "")), query.domain_name)
+                for item in assignments
+            ) or any(_matches_requested_name(str(domain), query.domain_name) for domain in top_domains)
+            if not has_domain_match:
+                continue
 
         availability_percent = int((commercial or {}).get("availability_percent", 0))
         available_from_date = _parse_iso_date((commercial or {}).get("effective_from"))
@@ -173,6 +238,13 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
         confidence = round(sum(confidence_parts) / max(len(confidence_parts), 1), 2)
         availability_boost = _availability_rank_boost(availability_percent, available_from_date)
         budget_boost = _budget_fit_rank_boost(bill_rate, budget_limit)
+        client_domain_boost, client_domain_reasons = _client_domain_rank_boost(
+            assignments=assignments,
+            top_clients=top_clients,
+            top_domains=top_domains,
+            client_name=query.client_name,
+            domain_name=query.domain_name,
+        )
 
         interviewer_boost = 0.0
         interviewer_relevant = (
@@ -184,7 +256,14 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
             interviewer_boost = 0.02 + min(prior_interview_count, 10) / 1000
 
         confidence = round(
-            min(1.0, confidence + availability_boost + budget_boost + interviewer_boost),
+            min(
+                1.0,
+                confidence
+                + availability_boost
+                + budget_boost
+                + client_domain_boost
+                + interviewer_boost,
+            ),
             2,
         )
 
@@ -210,6 +289,11 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
         if budget_boost > 0 and budget_limit is not None:
             why_recommended.append(
                 "Budget fit influenced ranking with a small boost (good fit to selected budget constraints)."
+            )
+        if client_domain_boost > 0:
+            why_recommended.append(
+                "Client/domain relevance influenced ranking with a small boost "
+                f"({' and '.join(client_domain_reasons)})."
             )
         if interviewer_boost > 0:
             why_recommended.append(
