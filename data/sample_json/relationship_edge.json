@@ -11,5 +11,44 @@
       "source_system": "knowledge_repo",
       "source_record_id": "retro_2025_09_21"
     }
+  },
+  {
+    "edge_id": "edge_002",
+    "from_person_id": "person_001",
+    "to_person_id": "person_003",
+    "relationship_type": "worked_with",
+    "strength": 0.68,
+    "context_note": "Worked together on delivery governance for FinBank platform modernization.",
+    "source_provenance": {
+      "source_type": "assignment_history",
+      "source_system": "delivery_tracker",
+      "source_record_id": "asg_2025_q4_finbank"
+    }
+  },
+  {
+    "edge_id": "edge_003",
+    "from_person_id": "person_002",
+    "to_person_id": "person_004",
+    "relationship_type": "worked_with",
+    "strength": 0.52,
+    "context_note": "Paired on API test automation and data pipeline hardening.",
+    "source_provenance": {
+      "source_type": "project_retrospective",
+      "source_system": "knowledge_repo",
+      "source_record_id": "retro_2025_11_10"
+    }
+  },
+  {
+    "edge_id": "edge_004",
+    "from_person_id": "person_002",
+    "to_person_id": "person_003",
+    "relationship_type": "worked_with",
+    "strength": 0.63,
+    "context_note": "Collaborated on release readiness and stakeholder reporting for BFSI platform cutover.",
+    "source_provenance": {
+      "source_type": "assignment_history",
+      "source_system": "delivery_tracker",
+      "source_record_id": "asg_2026_q1_cutover"
+    }
   }
 ]

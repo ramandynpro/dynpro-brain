@@ -85,6 +85,116 @@ def _client_domain_rank_boost(
     return boost, reasons
 
 
+
+
+def _build_relationship_lookup(relationship_edges: list[dict]) -> dict[str, list[dict[str, str | float]]]:
+    relationship_lookup: dict[str, list[dict[str, str | float]]] = {}
+
+    for edge in relationship_edges:
+        relationship_type = str(edge.get("relationship_type", "")).strip().lower()
+        if relationship_type != "worked_with":
+            continue
+
+        from_person_id = str(edge.get("from_person_id", "")).strip()
+        to_person_id = str(edge.get("to_person_id", "")).strip()
+        if not from_person_id or not to_person_id:
+            continue
+
+        strength = float(edge.get("strength", 0.0) or 0.0)
+        context_note = str(edge.get("context_note", "")).strip()
+
+        relationship_lookup.setdefault(from_person_id, []).append(
+            {
+                "person_id": to_person_id,
+                "strength": strength,
+                "context_note": context_note,
+            }
+        )
+        relationship_lookup.setdefault(to_person_id, []).append(
+            {
+                "person_id": from_person_id,
+                "strength": strength,
+                "context_note": context_note,
+            }
+        )
+
+    return relationship_lookup
+
+
+def _resolve_person_id_by_name(people: list[dict], requested_name: str | None) -> str | None:
+    if not requested_name:
+        return None
+
+    requested_name_normalized = requested_name.strip().lower()
+    if not requested_name_normalized:
+        return None
+
+    for person in people:
+        full_name = str(person.get("full_name", "")).strip().lower()
+        if requested_name_normalized == full_name:
+            return str(person.get("person_id", "")).strip() or None
+
+    for person in people:
+        full_name = str(person.get("full_name", "")).strip().lower()
+        if requested_name_normalized in full_name:
+            return str(person.get("person_id", "")).strip() or None
+
+    return None
+
+
+def _relationship_rank_boost(
+    person_id: str,
+    relationship_lookup: dict[str, list[dict[str, str | float]]],
+    target_person_id: str | None,
+) -> tuple[float, str | None]:
+    if not target_person_id:
+        return 0.0, None
+
+    matching_edges = [
+        edge for edge in relationship_lookup.get(person_id, []) if edge.get("person_id") == target_person_id
+    ]
+    if not matching_edges:
+        return 0.0, None
+
+    strongest_edge = max(matching_edges, key=lambda edge: float(edge.get("strength", 0.0) or 0.0))
+    strength = min(max(float(strongest_edge.get("strength", 0.0) or 0.0), 0.0), 1.0)
+    boost = 0.01 + (strength * 0.02)
+    context_note = str(strongest_edge.get("context_note", "")).strip()
+
+    return boost, context_note or None
+
+
+def _pair_relationship_boost(
+    candidate_person_id: str,
+    selected_people: list[dict],
+    relationship_lookup: dict[str, list[dict[str, str | float]]],
+) -> tuple[float, int]:
+    if not selected_people:
+        return 0.0, 0
+
+    connected_edges = 0
+    total_boost = 0.0
+
+    connected_ids = {str(edge.get("person_id", "")) for edge in relationship_lookup.get(candidate_person_id, [])}
+    for selected_person in selected_people:
+        selected_person_id = selected_person["person_id"]
+        if selected_person_id not in connected_ids:
+            continue
+
+        connected_edges += 1
+        matching_edge = next(
+            (
+                edge
+                for edge in relationship_lookup.get(candidate_person_id, [])
+                if str(edge.get("person_id", "")) == selected_person_id
+            ),
+            None,
+        )
+        strength = float((matching_edge or {}).get("strength", 0.0) or 0.0)
+        total_boost += 0.01 + min(max(strength, 0.0), 1.0) * 0.01
+
+    return total_boost, connected_edges
+
 def _country_from_location(location: str | None) -> str:
     if not location:
         return ""
@@ -199,6 +309,11 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
 
     data = load_sample_data()
     recommendations: list[Recommendation] = []
+    relationship_lookup = _build_relationship_lookup(data.relationship_edges)
+
+    target_person_id = query.worked_with_person_id
+    if not target_person_id and query.worked_with_person_name:
+        target_person_id = _resolve_person_id_by_name(data.people, query.worked_with_person_name)
 
     for person in data.people:
         person_id = person.get("person_id", "")
@@ -326,6 +441,12 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
             if presales_participation_count > 0:
                 poc_support_boost += min(presales_participation_count, 5) / 2000
 
+        relationship_boost, relationship_context_note = _relationship_rank_boost(
+            person_id=person_id,
+            relationship_lookup=relationship_lookup,
+            target_person_id=target_person_id,
+        )
+
         confidence = round(
             min(
                 1.0,
@@ -334,7 +455,8 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
                 + budget_boost
                 + client_domain_boost
                 + interviewer_boost
-                + poc_support_boost,
+                + poc_support_boost
+                + relationship_boost,
             ),
             2,
         )
@@ -378,6 +500,16 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
                 f"(willing to support POCs: {willing_to_support_pocs}, POC participation: {poc_participation_count}, "
                 f"presales participation: {presales_participation_count}, client-facing comfort: {client_facing_comfort or 'unknown'})."
             )
+        if relationship_boost > 0:
+            relationship_reference = query.worked_with_person_name or target_person_id or "requested person"
+            relationship_reason = (
+                "Relationship context influenced ranking with a small boost "
+                f"(worked with: {relationship_reference}"
+            )
+            if relationship_context_note:
+                relationship_reason += f", context: {relationship_context_note}"
+            relationship_reason += ")."
+            why_recommended.append(relationship_reason)
 
         uncertainties = [
             "Validate latest availability with delivery lead before staffing.",
@@ -423,6 +555,7 @@ def build_pod_for_query(query: SearchQuery) -> dict:
 
     internal_external_value = query.internal_external_preference or query.internal_external
     budget_limit_per_person = _effective_budget_limit(query)
+    relationship_lookup = _build_relationship_lookup(data.relationship_edges)
 
     candidates: list[dict] = []
     for person in data.people:
@@ -498,17 +631,24 @@ def build_pod_for_query(query: SearchQuery) -> dict:
     covered_roles: set[str] = set()
 
     remaining = candidates.copy()
+    relationship_links_used = 0
     while remaining and len(selected) < pod_size:
         best = max(
             remaining,
             key=lambda c: (
                 len(c["matched_skills"] - covered_skills),
                 len(c["matched_roles"] - covered_roles),
+                _pair_relationship_boost(c["person_id"], selected, relationship_lookup)[0]
+                if query.prefer_people_who_worked_together
+                else 0.0,
                 c["availability_percent"],
                 c["confidence"],
                 -c["bill_rate_usd"],
             ),
         )
+        if query.prefer_people_who_worked_together and selected:
+            _, connected_edges = _pair_relationship_boost(best["person_id"], selected, relationship_lookup)
+            relationship_links_used += connected_edges
         selected.append(best)
         covered_skills.update(best["matched_skills"])
         covered_roles.update(best["matched_roles"])
@@ -571,6 +711,10 @@ def build_pod_for_query(query: SearchQuery) -> dict:
         "This pod was selected with a simple greedy approach to maximize skill and role coverage first.",
         "Availability and budget were used as practical Phase 1 tie-breakers.",
     ]
+    if query.prefer_people_who_worked_together and relationship_links_used > 0:
+        why_this_pod.append(
+            "Relationship context influenced pod ranking with a small boost for people who have worked together before."
+        )
 
     uncertainties = [
         "Budget fit uses a simple sum of sample bill rates and may need finance validation.",

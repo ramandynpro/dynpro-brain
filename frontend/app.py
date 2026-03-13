@@ -23,6 +23,8 @@ skills = st.text_input("Skill filters (comma-separated)")
 domains = st.text_input("Domain filters (comma-separated)")
 client_name = st.text_input("Client name (e.g., FinBank)")
 domain_name = st.text_input("Domain name (e.g., BFSI)")
+worked_with_person_name = st.text_input("Worked with person name (optional)")
+prefer_people_who_worked_together = st.checkbox("Prefer people who worked together")
 
 internal_external = st.selectbox("Internal/External", ["Any", "internal", "external"])
 country = st.text_input("Country filter (exact, e.g., India)")
@@ -88,6 +90,8 @@ if st.button("Run Search"):
             "practice": practice.strip() or None,
             "client_name": client_name.strip() or None,
             "domain_name": domain_name.strip() or None,
+            "worked_with_person_name": worked_with_person_name.strip() or None,
+            "prefer_people_who_worked_together": prefer_people_who_worked_together,
             "minimum_available_percent": (
                 minimum_available_percent if minimum_available_percent > 0 else None
             ),

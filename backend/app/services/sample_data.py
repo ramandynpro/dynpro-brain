@@ -13,6 +13,7 @@ class SampleDataBundle:
     skill_evidence: list[dict[str, Any]]
     assignments: list[dict[str, Any]]
     commercial_profiles: list[dict[str, Any]]
+    relationship_edges: list[dict[str, Any]]
 
 
 def _repo_root() -> Path:
@@ -43,4 +44,5 @@ def load_sample_data() -> SampleDataBundle:
         skill_evidence=_load_json_array(sample_dir / "skill_evidence.json"),
         assignments=_load_json_array(sample_dir / "assignment_project.json"),
         commercial_profiles=_load_json_array(sample_dir / "commercial_profile.json"),
+        relationship_edges=_load_json_array(sample_dir / "relationship_edge.json"),
     )
