@@ -27,6 +27,11 @@ class SearchQuery(BaseModel):
     poc_support_only: bool = False
     minimum_client_facing_comfort: str | None = None
     minimum_poc_participation_count: int | None = Field(default=None, ge=0)
+    required_skills: list[str] = Field(default_factory=list)
+    desired_roles: list[str] = Field(default_factory=list)
+    pod_size: int | None = Field(default=None, ge=1, le=10)
+    internal_external_preference: str | None = None
+    budget_ceiling: float | None = Field(default=None, gt=0)
 
 
 class Recommendation(BaseModel):
@@ -44,4 +49,5 @@ class Recommendation(BaseModel):
 class SearchResponse(BaseModel):
     query: SearchQuery
     recommendations: list[Recommendation]
+    pod_recommendation: dict | None = None
     notes: list[str]

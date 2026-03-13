@@ -45,6 +45,10 @@ def _normalized_values(values: list[str] | None) -> set[str]:
     return {str(value).strip().lower() for value in values or [] if str(value).strip()}
 
 
+def _normalized_text(value: str) -> str:
+    return " ".join(value.strip().lower().split())
+
+
 def _client_domain_rank_boost(
     assignments: list[dict],
     top_clients: list[str] | None,
@@ -133,6 +137,60 @@ def _budget_fit_rank_boost(bill_rate: float | None, max_bill_rate: float | None)
     return 0.0
 
 
+def _effective_budget_limit(query: SearchQuery) -> float | None:
+    budget_limit = query.max_bill_rate
+    band_limit = _budget_band_limit(query.budget_band)
+    if budget_limit is None and band_limit is not None:
+        budget_limit = band_limit
+    elif budget_limit is not None and band_limit is not None:
+        budget_limit = min(budget_limit, band_limit)
+    return budget_limit
+
+
+def _matches_common_filters(
+    person: dict,
+    assignments: list[dict],
+    query: SearchQuery,
+    internal_external_value: str | None = None,
+) -> bool:
+    top_clients = person.get("top_clients") if isinstance(person.get("top_clients"), list) else []
+    top_domains = person.get("top_domains") if isinstance(person.get("top_domains"), list) else []
+
+    person_timezone = str(person.get("timezone", ""))
+    person_country = _country_from_location(str(person.get("home_location", "")))
+    internal_external = str(person.get("internal_external", "internal"))
+    practice = str(person.get("practice", "Unknown"))
+
+    requested_internal_external = internal_external_value if internal_external_value else query.internal_external
+
+    if not _matches_filter(internal_external, requested_internal_external):
+        return False
+    if not _matches_filter(person_country, query.country):
+        return False
+    if not _matches_filter(person_timezone, query.timezone):
+        return False
+    if not _matches_filter(practice, query.practice):
+        return False
+
+    if query.client_name:
+        has_client_match = any(
+            _matches_requested_name(str(item.get("client_name", "")), query.client_name)
+            for item in assignments
+        ) or any(_matches_requested_name(str(client), query.client_name) for client in top_clients)
+        if not has_client_match:
+            return False
+
+    if query.domain_name:
+        has_domain_match = any(
+            _matches_requested_name(str(item.get("domain", "")), query.domain_name)
+            for item in assignments
+        ) or any(_matches_requested_name(str(domain), query.domain_name) for domain in top_domains)
+        if not has_domain_match:
+            return False
+
+    return True
+
+
 def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
     """
     Simple phase-1 ranking using sample JSON data.
@@ -159,46 +217,14 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
         top_clients = person.get("top_clients") if isinstance(person.get("top_clients"), list) else []
         top_domains = person.get("top_domains") if isinstance(person.get("top_domains"), list) else []
 
-        person_timezone = str(person.get("timezone", ""))
-        person_country = _country_from_location(str(person.get("home_location", "")))
-        internal_external = str(person.get("internal_external", "internal"))
-        practice = str(person.get("practice", "Unknown"))
-
-        if not _matches_filter(internal_external, query.internal_external):
+        if not _matches_common_filters(person, assignments, query):
             continue
-        if not _matches_filter(person_country, query.country):
-            continue
-        if not _matches_filter(person_timezone, query.timezone):
-            continue
-        if not _matches_filter(practice, query.practice):
-            continue
-
-        if query.client_name:
-            has_client_match = any(
-                _matches_requested_name(str(item.get("client_name", "")), query.client_name)
-                for item in assignments
-            ) or any(_matches_requested_name(str(client), query.client_name) for client in top_clients)
-            if not has_client_match:
-                continue
-
-        if query.domain_name:
-            has_domain_match = any(
-                _matches_requested_name(str(item.get("domain", "")), query.domain_name)
-                for item in assignments
-            ) or any(_matches_requested_name(str(domain), query.domain_name) for domain in top_domains)
-            if not has_domain_match:
-                continue
 
         availability_percent = int((commercial or {}).get("availability_percent", 0))
         available_from_date = _parse_iso_date((commercial or {}).get("effective_from"))
         bill_rate = float((commercial or {}).get("bill_rate_usd", 0)) if commercial else None
 
-        budget_limit = query.max_bill_rate
-        band_limit = _budget_band_limit(query.budget_band)
-        if budget_limit is None and band_limit is not None:
-            budget_limit = band_limit
-        elif budget_limit is not None and band_limit is not None:
-            budget_limit = min(budget_limit, band_limit)
+        budget_limit = _effective_budget_limit(query)
 
         if budget_limit is not None and (bill_rate is None or bill_rate > budget_limit):
             continue
@@ -385,3 +411,220 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
         )
 
     return sorted(recommendations, key=lambda item: item.confidence_score, reverse=True)
+
+
+def build_pod_for_query(query: SearchQuery) -> dict:
+    """Simple explainable Phase-1 pod builder workflow using sample JSON."""
+
+    data = load_sample_data()
+    required_skills = {_normalized_text(skill) for skill in query.required_skills if skill.strip()}
+    desired_roles = [_normalized_text(role) for role in query.desired_roles if role.strip()]
+    pod_size = query.pod_size or 3
+
+    internal_external_value = query.internal_external_preference or query.internal_external
+    budget_limit_per_person = _effective_budget_limit(query)
+
+    candidates: list[dict] = []
+    for person in data.people:
+        person_id = str(person.get("person_id", ""))
+        assignments = [item for item in data.assignments if item.get("person_id") == person_id]
+        commercial = next(
+            (item for item in data.commercial_profiles if item.get("person_id") == person_id),
+            None,
+        )
+        evidence = [item for item in data.skill_evidence if item.get("person_id") == person_id]
+
+        if not _matches_common_filters(person, assignments, query, internal_external_value):
+            continue
+
+        availability_percent = int((commercial or {}).get("availability_percent", 0) or 0)
+        available_from_date = _parse_iso_date((commercial or {}).get("effective_from"))
+        bill_rate = float((commercial or {}).get("bill_rate_usd", 0) or 0)
+
+        if (
+            query.minimum_available_percent is not None
+            and availability_percent < query.minimum_available_percent
+        ):
+            continue
+        if query.available_by_date and (
+            not available_from_date or available_from_date > query.available_by_date
+        ):
+            continue
+        if budget_limit_per_person is not None and bill_rate > budget_limit_per_person:
+            continue
+
+        person_role = _normalized_text(str(person.get("current_role", "")))
+        person_skill_tokens = {
+            _normalized_text(str(item.get("skill_name", "")))
+            for item in evidence
+            if str(item.get("skill_name", "")).strip()
+        }
+        skill_text = _normalized_text(
+            " ".join(
+                [
+                    str(person.get("summary", "")),
+                    " ".join(str(item.get("skill_name", "")) for item in evidence),
+                    " ".join(str(item.get("project_summary", "")) for item in assignments),
+                ]
+            )
+        )
+
+        matched_skills = {
+            requested_skill
+            for requested_skill in required_skills
+            if requested_skill in person_skill_tokens or requested_skill in skill_text
+        }
+        matched_roles = {
+            role for role in desired_roles if role in person_role or person_role in role
+        }
+
+        candidates.append(
+            {
+                "person_id": person_id,
+                "full_name": str(person.get("full_name", "Unknown")),
+                "current_role": str(person.get("current_role", "Unknown role")),
+                "internal_external": str(person.get("internal_external", "internal")),
+                "availability_percent": availability_percent,
+                "available_from": available_from_date.isoformat() if available_from_date else None,
+                "bill_rate_usd": bill_rate,
+                "matched_skills": matched_skills,
+                "matched_roles": matched_roles,
+                "confidence": float(person.get("profile_confidence", 0.5)),
+            }
+        )
+
+    selected: list[dict] = []
+    covered_skills: set[str] = set()
+    covered_roles: set[str] = set()
+
+    remaining = candidates.copy()
+    while remaining and len(selected) < pod_size:
+        best = max(
+            remaining,
+            key=lambda c: (
+                len(c["matched_skills"] - covered_skills),
+                len(c["matched_roles"] - covered_roles),
+                c["availability_percent"],
+                c["confidence"],
+                -c["bill_rate_usd"],
+            ),
+        )
+        selected.append(best)
+        covered_skills.update(best["matched_skills"])
+        covered_roles.update(best["matched_roles"])
+        remaining = [candidate for candidate in remaining if candidate["person_id"] != best["person_id"]]
+
+    total_bill_rate = round(sum(person["bill_rate_usd"] for person in selected), 2)
+    within_budget = query.budget_ceiling is None or total_bill_rate <= query.budget_ceiling
+
+    unassigned_roles = [role for role in desired_roles if role not in covered_roles]
+    role_assignments = {}
+    for role in desired_roles:
+        matching_person = next((person for person in selected if role in person["matched_roles"]), None)
+        if matching_person:
+            role_assignments[role] = matching_person["full_name"]
+
+    for person in selected:
+        assigned = next(
+            (role for role, name in role_assignments.items() if name == person["full_name"]),
+            None,
+        )
+        person["assigned_role"] = assigned
+
+    missing_skills = [skill for skill in required_skills if skill not in covered_skills]
+
+    backups = sorted(
+        remaining,
+        key=lambda c: (
+            len(c["matched_skills"]),
+            len(c["matched_roles"]),
+            c["availability_percent"],
+            c["confidence"],
+        ),
+        reverse=True,
+    )[:2]
+
+    constraints_satisfied: list[str] = []
+    constraints_partial: list[str] = []
+
+    if len(selected) == pod_size:
+        constraints_satisfied.append(f"Pod size target met ({pod_size}).")
+    else:
+        constraints_partial.append(f"Only {len(selected)} person(s) matched filters out of requested {pod_size}.")
+
+    if not missing_skills:
+        constraints_satisfied.append("All required skills are covered by selected people.")
+    else:
+        constraints_partial.append(f"Missing required skills: {', '.join(missing_skills)}.")
+
+    if not unassigned_roles:
+        constraints_satisfied.append("All desired roles have a simple assignment.")
+    else:
+        constraints_partial.append(f"Roles without assignment: {', '.join(unassigned_roles)}.")
+
+    if query.budget_ceiling is not None and within_budget:
+        constraints_satisfied.append("Estimated total bill rate is within budget ceiling.")
+    elif query.budget_ceiling is not None:
+        constraints_partial.append("Estimated total bill rate is above budget ceiling.")
+
+    why_this_pod = [
+        "This pod was selected with a simple greedy approach to maximize skill and role coverage first.",
+        "Availability and budget were used as practical Phase 1 tie-breakers.",
+    ]
+
+    uncertainties = [
+        "Budget fit uses a simple sum of sample bill rates and may need finance validation.",
+        "Role assignment is based on current-role text match and should be reviewed by a delivery lead.",
+        "Availability can change quickly and should be re-confirmed before client commitment.",
+    ]
+
+    return {
+        "recommended_people": [
+            {
+                "person_id": person["person_id"],
+                "full_name": person["full_name"],
+                "current_role": person["current_role"],
+                "assigned_role": person.get("assigned_role"),
+                "internal_external": person["internal_external"],
+                "availability_percent": person["availability_percent"],
+                "available_from": person["available_from"],
+                "bill_rate_usd": person["bill_rate_usd"],
+                "matched_skills": sorted(person["matched_skills"]),
+                "matched_roles": sorted(person["matched_roles"]),
+            }
+            for person in selected
+        ],
+        "coverage_summary": {
+            "required_skills": sorted(required_skills),
+            "covered_skills": sorted(covered_skills),
+            "missing_skills": sorted(missing_skills),
+            "desired_roles": desired_roles,
+            "covered_roles": sorted(covered_roles),
+            "unassigned_roles": unassigned_roles,
+        },
+        "budget_fit_summary": {
+            "budget_ceiling": query.budget_ceiling,
+            "estimated_total_bill_rate": total_bill_rate,
+            "within_budget": within_budget,
+            "notes": "Estimated total bill rate is a simple sum of selected people bill rates.",
+        },
+        "gaps": [
+            *([f"Missing skills: {', '.join(missing_skills)}"] if missing_skills else []),
+            *([f"Unassigned roles: {', '.join(unassigned_roles)}"] if unassigned_roles else []),
+        ],
+        "substitutions_or_backups": [
+            {
+                "person_id": person["person_id"],
+                "full_name": person["full_name"],
+                "current_role": person["current_role"],
+                "matched_skills": sorted(person["matched_skills"]),
+                "matched_roles": sorted(person["matched_roles"]),
+            }
+            for person in backups
+        ],
+        "why_this_pod_was_suggested": why_this_pod,
+        "constraints_satisfied": constraints_satisfied,
+        "constraints_partially_satisfied": constraints_partial,
+        "uncertainties": uncertainties,
+        "next_action": "Review this pod with a delivery manager, confirm current availability, and validate budget assumptions with finance.",
+    }

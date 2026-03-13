@@ -32,5 +32,39 @@
       "source_system": "delivery_tracker",
       "source_record_id": "proj_662"
     }
+  },
+  {
+    "project_id": "project_003",
+    "person_id": "person_003",
+    "project_name": "FinBank Core Data Program Governance",
+    "client_name": "FinBank",
+    "domain": "BFSI",
+    "role_on_project": "Delivery Manager",
+    "start_date": "2025-03-01",
+    "end_date": "2026-01-15",
+    "project_summary": "Coordinated delivery pods, tracked risks, and aligned release commitments.",
+    "confidence": 0.84,
+    "source_provenance": {
+      "source_type": "project_system",
+      "source_system": "delivery_tracker",
+      "source_record_id": "proj_779"
+    }
+  },
+  {
+    "project_id": "project_004",
+    "person_id": "person_004",
+    "project_name": "RetailBank Reporting QA Acceleration",
+    "client_name": "RetailBank",
+    "domain": "BFSI",
+    "role_on_project": "QA Lead",
+    "start_date": "2025-08-01",
+    "end_date": "2026-01-10",
+    "project_summary": "Built data and API test automation for reporting and compliance releases.",
+    "confidence": 0.8,
+    "source_provenance": {
+      "source_type": "project_system",
+      "source_system": "delivery_tracker",
+      "source_record_id": "proj_801"
+    }
   }
 ]

@@ -8,7 +8,10 @@
     "observed_at": "2025-11-18",
     "confidence": 0.82,
     "metadata": {
-      "workflow_tags": ["expert_finder", "poc_support_finder"],
+      "workflow_tags": [
+        "expert_finder",
+        "poc_support_finder"
+      ],
       "validated_by": "delivery_manager"
     }
   },
@@ -21,8 +24,60 @@
     "observed_at": "2025-12-04",
     "confidence": 0.8,
     "metadata": {
-      "workflow_tags": ["expert_finder", "interviewer_finder"],
+      "workflow_tags": [
+        "expert_finder",
+        "interviewer_finder"
+      ],
       "validated_by": "delivery_manager"
+    }
+  },
+  {
+    "evidence_id": "evidence_003",
+    "person_id": "person_003",
+    "skill_name": "Delivery Management",
+    "evidence_text": "Managed a 6-person banking modernization pod across data, QA, and governance tracks.",
+    "source_uri": "s3://dynpro-docs/projects/finbank/pod-delivery-plan.pdf",
+    "observed_at": "2025-10-10",
+    "confidence": 0.8,
+    "metadata": {
+      "workflow_tags": [
+        "pod_builder",
+        "expert_finder",
+        "poc_support_finder"
+      ],
+      "validated_by": "account_director"
+    }
+  },
+  {
+    "evidence_id": "evidence_004",
+    "person_id": "person_003",
+    "skill_name": "Stakeholder Communication",
+    "evidence_text": "Ran weekly steering committee updates and risk tracking with client sponsors.",
+    "source_uri": "s3://dynpro-docs/projects/finbank/steerco-notes.pdf",
+    "observed_at": "2025-11-01",
+    "confidence": 0.79,
+    "metadata": {
+      "workflow_tags": [
+        "pod_builder",
+        "client_domain_finder"
+      ],
+      "validated_by": "delivery_manager"
+    }
+  },
+  {
+    "evidence_id": "evidence_005",
+    "person_id": "person_004",
+    "skill_name": "QA Automation",
+    "evidence_text": "Implemented automated data regression suite for regulatory reporting pipelines.",
+    "source_uri": "s3://dynpro-docs/projects/retailbank/qa-automation.pdf",
+    "observed_at": "2025-12-12",
+    "confidence": 0.77,
+    "metadata": {
+      "workflow_tags": [
+        "pod_builder",
+        "expert_finder"
+      ],
+      "validated_by": "engineering_manager"
     }
   }
 ]

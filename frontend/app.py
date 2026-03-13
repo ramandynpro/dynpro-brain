@@ -10,7 +10,13 @@ st.caption("Decision support for capability intelligence (human-in-the-loop).")
 
 workflow = st.selectbox(
     "Workflow",
-    ["expert_finder", "interviewer_finder", "client_domain_finder", "poc_support_finder"],
+    [
+        "expert_finder",
+        "interviewer_finder",
+        "client_domain_finder",
+        "poc_support_finder",
+        "pod_builder",
+    ],
 )
 text_query = st.text_area("What are you trying to find?", height=100)
 skills = st.text_input("Skill filters (comma-separated)")
@@ -26,10 +32,33 @@ minimum_available_percent = st.slider(
     "Minimum available percent", min_value=0, max_value=100, value=0, step=5
 )
 max_bill_rate = st.number_input(
-    "Max bill rate (optional)", min_value=0.0, value=0.0, step=5.0,
-    help="Use this when you want budget-aware matching without showing raw commercial detail in results."
+    "Max bill rate (optional)",
+    min_value=0.0,
+    value=0.0,
+    step=5.0,
+    help="Use this when you want budget-aware matching without showing raw commercial detail in results.",
 )
 budget_band = st.selectbox("Budget band", ["Any", "economy", "standard", "premium"])
+
+if workflow == "pod_builder":
+    st.subheader("Pod Builder Inputs")
+    required_skills = st.text_input("Required skills (comma-separated)")
+    desired_roles = st.text_input("Desired roles (comma-separated)")
+    pod_size = st.slider("Pod size", min_value=1, max_value=6, value=3, step=1)
+    internal_external_preference = st.selectbox(
+        "Internal/External preference",
+        ["Any", "internal", "external"],
+    )
+    budget_ceiling = st.number_input(
+        "Pod budget ceiling (estimated total)", min_value=0.0, value=0.0, step=10.0
+    )
+else:
+    required_skills = ""
+    desired_roles = ""
+    pod_size = 3
+    internal_external_preference = "Any"
+    budget_ceiling = 0.0
+
 interviewer_only = st.checkbox("Interviewer only")
 minimum_prior_interview_count = st.number_input(
     "Minimum prior interview count", min_value=0, value=0, step=1
@@ -76,23 +105,70 @@ if st.button("Run Search"):
                 minimum_poc_participation_count if minimum_poc_participation_count > 0 else None
             ),
             "available_by_date": available_by_date.isoformat() if use_available_by_date else None,
+            "required_skills": [s.strip() for s in required_skills.split(",") if s.strip()],
+            "desired_roles": [r.strip() for r in desired_roles.split(",") if r.strip()],
+            "pod_size": pod_size,
+            "internal_external_preference": (
+                None
+                if internal_external_preference == "Any"
+                else internal_external_preference
+            ),
+            "budget_ceiling": budget_ceiling if budget_ceiling > 0 else None,
         }
         response = requests.post(f"{API_BASE_URL}/api/v1/search", json=payload, timeout=20)
         response.raise_for_status()
         data = response.json()
 
-        st.subheader("Recommendations")
-        for rec in data["recommendations"]:
-            with st.container(border=True):
-                st.markdown(f"### {rec['full_name']} ({rec['role']})")
-                st.write(f"Confidence: **{rec['confidence_score']}**")
-                st.write("**Why recommended**")
-                st.write(rec["why_recommended"])
-                st.write("**Evidence IDs**")
-                st.write(rec["evidence_ids"])
-                st.write("**Uncertainties**")
-                st.write(rec["uncertainties"])
-                st.info(f"Next action: {rec['next_action']}")
+        if workflow == "pod_builder" and data.get("pod_recommendation"):
+            pod = data["pod_recommendation"]
+            st.subheader("Pod Recommendation")
+            for person in pod["recommended_people"]:
+                with st.container(border=True):
+                    st.markdown(
+                        f"### {person['full_name']} ({person['current_role']})"
+                    )
+                    st.write(f"Assigned role: **{person.get('assigned_role') or 'TBD'}**")
+                    st.write(
+                        f"Availability: {person['availability_percent']}% | Bill rate: {person['bill_rate_usd']}"
+                    )
+                    st.write(f"Matched skills: {person['matched_skills']}")
+                    st.write(f"Matched roles: {person['matched_roles']}")
+
+            st.markdown("### Coverage Summary")
+            st.json(pod["coverage_summary"])
+
+            st.markdown("### Budget Fit Summary")
+            st.json(pod["budget_fit_summary"])
+
+            st.markdown("### Gaps")
+            st.write(pod["gaps"] or ["No major gaps identified in this simple pass."])
+
+            st.markdown("### Substitutions / Backups")
+            st.write(pod["substitutions_or_backups"])
+
+            st.markdown("### Explainability")
+            st.write("**Why this pod was suggested**")
+            st.write(pod["why_this_pod_was_suggested"])
+            st.write("**Constraints satisfied**")
+            st.write(pod["constraints_satisfied"])
+            st.write("**Constraints partially satisfied**")
+            st.write(pod["constraints_partially_satisfied"])
+            st.write("**Uncertainties**")
+            st.write(pod["uncertainties"])
+            st.info(f"Next action: {pod['next_action']}")
+        else:
+            st.subheader("Recommendations")
+            for rec in data["recommendations"]:
+                with st.container(border=True):
+                    st.markdown(f"### {rec['full_name']} ({rec['role']})")
+                    st.write(f"Confidence: **{rec['confidence_score']}**")
+                    st.write("**Why recommended**")
+                    st.write(rec["why_recommended"])
+                    st.write("**Evidence IDs**")
+                    st.write(rec["evidence_ids"])
+                    st.write("**Uncertainties**")
+                    st.write(rec["uncertainties"])
+                    st.info(f"Next action: {rec['next_action']}")
 
         st.subheader("System Notes")
         st.write(data["notes"])

@@ -28,5 +28,35 @@
       "source_system": "revops",
       "source_record_id": "rev_1088"
     }
+  },
+  {
+    "commercial_profile_id": "commercial_003",
+    "person_id": "person_003",
+    "bill_rate_usd": 130.0,
+    "cost_rate_usd": 82.0,
+    "availability_percent": 60,
+    "availability_note": "Available 3 days/week with partial overlap on current engagement.",
+    "effective_from": "2026-02-20",
+    "confidence": 0.78,
+    "source_provenance": {
+      "source_type": "finance_sheet",
+      "source_system": "revops",
+      "source_record_id": "rev_1177"
+    }
+  },
+  {
+    "commercial_profile_id": "commercial_004",
+    "person_id": "person_004",
+    "bill_rate_usd": 95.0,
+    "cost_rate_usd": 58.0,
+    "availability_percent": 100,
+    "availability_note": "Fully available this month.",
+    "effective_from": "2026-02-10",
+    "confidence": 0.74,
+    "source_provenance": {
+      "source_type": "vendor_sheet",
+      "source_system": "vendor_portal",
+      "source_record_id": "ven_441"
+    }
   }
 ]
