@@ -23,6 +23,11 @@ practice = st.text_input("Practice filter (exact, e.g., Data & AI)")
 minimum_available_percent = st.slider(
     "Minimum available percent", min_value=0, max_value=100, value=0, step=5
 )
+max_bill_rate = st.number_input(
+    "Max bill rate (optional)", min_value=0.0, value=0.0, step=5.0,
+    help="Use this when you want budget-aware matching without showing raw commercial detail in results."
+)
+budget_band = st.selectbox("Budget band", ["Any", "economy", "standard", "premium"])
 use_available_by_date = st.checkbox("Only include people available by a date")
 available_by_date = st.date_input("Available by date", value=date.today(), disabled=not use_available_by_date)
 
@@ -42,6 +47,8 @@ if st.button("Run Search"):
             "minimum_available_percent": (
                 minimum_available_percent if minimum_available_percent > 0 else None
             ),
+            "max_bill_rate": max_bill_rate if max_bill_rate > 0 else None,
+            "budget_band": None if budget_band == "Any" else budget_band,
             "available_by_date": available_by_date.isoformat() if use_available_by_date else None,
         }
         response = requests.post(f"{API_BASE_URL}/api/v1/search", json=payload, timeout=20)

@@ -76,9 +76,11 @@ In the UI:
 - choose workflow: `expert_finder`
 - enter a request like: `Need a data engineering lead for BFSI modernization work`
 - add skill filter: `Data Engineering`
-- optionally set structured filters: `internal/external`, `country`, `timezone`, `practice`, `minimum available percent`, and `available by date`
+- optionally set structured filters: `internal/external`, `country`, `timezone`, `practice`, `minimum available percent`, `max bill rate`, `budget band`, and `available by date`
 
-The backend applies these structured filters directly to the sample JSON records before ranking and returning results. Availability also gives a small ranking boost to people who are more available sooner.
+The backend applies these structured filters directly to the sample JSON records before ranking and returning results. Availability gives a small ranking boost to people who are more available sooner. Budget fit also gives a small ranking boost when a person is comfortably within the selected budget constraints.
+
+For Phase 1 privacy, UI recommendations keep commercial output light and use budget-fit wording instead of exposing raw commercial details.
 
 You will see recommendation(s) built from the sample JSON files in `data/sample_json/` with:
 - why recommended
