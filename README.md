@@ -73,7 +73,7 @@ UI will open in your browser (usually `http://localhost:8501`).
 ## 5) Try a sample search
 
 In the UI:
-- choose workflow: `expert_finder` (or `poc_support_finder` for POC staffing support)
+- choose workflow: `expert_finder`, `interviewer_finder`, `client_domain_finder`, `poc_support_finder`, or `pod_builder`
 - enter a request like: `Need a data engineering lead for BFSI modernization work`
 - add skill filter: `Data Engineering`
 - optionally set structured filters: `internal/external`, `country`, `timezone`, `practice`, `client name`, `domain name`, `minimum available percent`, `max bill rate`, `budget band`, `interviewer only`, `minimum prior interview count`, `POC support only`, `minimum client-facing comfort`, `minimum POC participation count`, and `available by date`
@@ -94,3 +94,32 @@ You will see recommendation(s) built from the sample JSON files in `data/sample_
 - No auth yet (intentionally out of scope).
 - No automatic staffing decisions.
 - Search logic now reads from local sample JSON through a simple ingestion loader (still pre-database).
+
+
+## Pod builder v1 (new in Phase 1)
+
+You can now run a simple **pod_builder** workflow for small team recommendations.
+
+In the UI, choose workflow `pod_builder` and provide:
+- required skills
+- desired roles
+- pod size
+- internal/external preference
+- budget ceiling
+
+What pod builder v1 does (simple and explainable):
+- picks a small set of people from sample JSON
+- tries to maximize required skill coverage and desired role coverage
+- respects existing filters where possible (location/timezone/practice/client/domain/availability/budget guardrails)
+- checks availability and budget in a lightweight Phase 1 way
+
+What the response includes:
+- recommended people
+- simple role assignment where possible
+- coverage summary
+- budget-fit summary
+- gaps
+- substitutions/backups
+- explainability fields (why selected, satisfied constraints, partially satisfied constraints, uncertainties, next action)
+
+Important: this is still decision support only. A delivery lead should review pod suggestions before staffing decisions.
