@@ -24,6 +24,9 @@ class SearchQuery(BaseModel):
     budget_band: str | None = None
     interviewer_only: bool = False
     minimum_prior_interview_count: int | None = Field(default=None, ge=0)
+    poc_support_only: bool = False
+    minimum_client_facing_comfort: str | None = None
+    minimum_poc_participation_count: int | None = Field(default=None, ge=0)
 
 
 class Recommendation(BaseModel):
