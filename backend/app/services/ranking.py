@@ -439,7 +439,8 @@ def build_pod_for_query(query: SearchQuery) -> dict:
 
         availability_percent = int((commercial or {}).get("availability_percent", 0) or 0)
         available_from_date = _parse_iso_date((commercial or {}).get("effective_from"))
-        bill_rate = float((commercial or {}).get("bill_rate_usd", 0) or 0)
+        bill_rate_raw = (commercial or {}).get("bill_rate_usd")
+        bill_rate = float(bill_rate_raw) if bill_rate_raw is not None else None
 
         if (
             query.minimum_available_percent is not None
@@ -450,7 +451,9 @@ def build_pod_for_query(query: SearchQuery) -> dict:
             not available_from_date or available_from_date > query.available_by_date
         ):
             continue
-        if budget_limit_per_person is not None and bill_rate > budget_limit_per_person:
+        if budget_limit_per_person is not None and (
+            bill_rate is None or bill_rate > budget_limit_per_person
+        ):
             continue
 
         person_role = _normalized_text(str(person.get("current_role", "")))
@@ -506,7 +509,7 @@ def build_pod_for_query(query: SearchQuery) -> dict:
                 len(c["matched_roles"] - covered_roles),
                 c["availability_percent"],
                 c["confidence"],
-                -c["bill_rate_usd"],
+                -(c["bill_rate_usd"] if c["bill_rate_usd"] is not None else float("inf")),
             ),
         )
         selected.append(best)
@@ -514,8 +517,16 @@ def build_pod_for_query(query: SearchQuery) -> dict:
         covered_roles.update(best["matched_roles"])
         remaining = [candidate for candidate in remaining if candidate["person_id"] != best["person_id"]]
 
-    total_bill_rate = round(sum(person["bill_rate_usd"] for person in selected), 2)
-    within_budget = query.budget_ceiling is None or total_bill_rate <= query.budget_ceiling
+    unknown_bill_rate_count = sum(1 for person in selected if person["bill_rate_usd"] is None)
+    total_bill_rate = (
+        None
+        if unknown_bill_rate_count
+        else round(sum(person["bill_rate_usd"] for person in selected), 2)
+    )
+    within_budget = (
+        query.budget_ceiling is None
+        or (total_bill_rate is not None and total_bill_rate <= query.budget_ceiling)
+    )
 
     unassigned_roles = [role for role in desired_roles if role not in covered_roles]
     role_assignments = {}
@@ -562,7 +573,11 @@ def build_pod_for_query(query: SearchQuery) -> dict:
     else:
         constraints_partial.append(f"Roles without assignment: {', '.join(unassigned_roles)}.")
 
-    if query.budget_ceiling is not None and within_budget:
+    if query.budget_ceiling is not None and unknown_bill_rate_count:
+        constraints_partial.append(
+            "Estimated budget fit is unknown because one or more selected people are missing bill rates."
+        )
+    elif query.budget_ceiling is not None and within_budget:
         constraints_satisfied.append("Estimated total bill rate is within budget ceiling.")
     elif query.budget_ceiling is not None:
         constraints_partial.append("Estimated total bill rate is above budget ceiling.")
@@ -606,7 +621,8 @@ def build_pod_for_query(query: SearchQuery) -> dict:
             "budget_ceiling": query.budget_ceiling,
             "estimated_total_bill_rate": total_bill_rate,
             "within_budget": within_budget,
-            "notes": "Estimated total bill rate is a simple sum of selected people bill rates.",
+            "unknown_bill_rate_count": unknown_bill_rate_count,
+            "notes": "Estimated total bill rate is a simple sum of selected people bill rates when all rates are known.",
         },
         "gaps": [
             *([f"Missing skills: {', '.join(missing_skills)}"] if missing_skills else []),
