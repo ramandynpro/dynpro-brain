@@ -32,6 +32,9 @@ class SearchQuery(BaseModel):
     pod_size: int | None = Field(default=None, ge=1, le=10)
     internal_external_preference: str | None = None
     budget_ceiling: float | None = Field(default=None, gt=0)
+    worked_with_person_id: str | None = None
+    worked_with_person_name: str | None = None
+    prefer_people_who_worked_together: bool = False
 
 
 class Recommendation(BaseModel):
