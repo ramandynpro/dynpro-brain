@@ -1,0 +1,17 @@
+[
+  {
+    "person_id": "person_001",
+    "full_name": "Asha Patel",
+    "current_role": "Principal Data Consultant",
+    "home_location": "Bangalore, India",
+    "timezone": "IST",
+    "summary": "Leads cloud data platform delivery for regulated clients.",
+    "profile_last_updated_at": "2026-02-10T11:00:00Z",
+    "profile_confidence": 0.86,
+    "source_provenance": {
+      "source_type": "hr_profile",
+      "source_system": "internal_hris",
+      "source_record_id": "hr_7781"
+    }
+  }
+]

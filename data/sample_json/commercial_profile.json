@@ -1,0 +1,17 @@
+[
+  {
+    "commercial_profile_id": "commercial_001",
+    "person_id": "person_001",
+    "bill_rate_usd": 140.0,
+    "cost_rate_usd": 87.0,
+    "availability_percent": 40,
+    "availability_note": "Available 2 days/week until current engagement ends.",
+    "effective_from": "2026-03-01",
+    "confidence": 0.76,
+    "source_provenance": {
+      "source_type": "finance_sheet",
+      "source_system": "revops",
+      "source_record_id": "rev_993"
+    }
+  }
+]

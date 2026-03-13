@@ -1,0 +1,15 @@
+[
+  {
+    "edge_id": "edge_001",
+    "from_person_id": "person_001",
+    "to_person_id": "person_002",
+    "relationship_type": "worked_with",
+    "strength": 0.74,
+    "context_note": "Co-led data migration workstream for APAC retail banking client.",
+    "source_provenance": {
+      "source_type": "project_retrospective",
+      "source_system": "knowledge_repo",
+      "source_record_id": "retro_2025_09_21"
+    }
+  }
+]

@@ -1,0 +1,45 @@
+import requests
+import streamlit as st
+
+API_BASE_URL = st.sidebar.text_input("Backend URL", "http://localhost:8000")
+
+st.title("DynPro Brain - Phase 1 MVP Scaffold")
+st.caption("Decision support for capability intelligence (human-in-the-loop).")
+
+workflow = st.selectbox(
+    "Workflow",
+    ["expert_finder", "interviewer_finder", "client_domain_finder"],
+)
+text_query = st.text_area("What are you trying to find?", height=100)
+skills = st.text_input("Skill filters (comma-separated)")
+domains = st.text_input("Domain filters (comma-separated)")
+
+if st.button("Run Search"):
+    if not text_query.strip():
+        st.warning("Please enter a query.")
+    else:
+        payload = {
+            "workflow": workflow,
+            "text_query": text_query,
+            "skill_filters": [s.strip() for s in skills.split(",") if s.strip()],
+            "domain_filters": [d.strip() for d in domains.split(",") if d.strip()],
+        }
+        response = requests.post(f"{API_BASE_URL}/api/v1/search", json=payload, timeout=20)
+        response.raise_for_status()
+        data = response.json()
+
+        st.subheader("Recommendations")
+        for rec in data["recommendations"]:
+            with st.container(border=True):
+                st.markdown(f"### {rec['full_name']} ({rec['role']})")
+                st.write(f"Confidence: **{rec['confidence_score']}**")
+                st.write("**Why recommended**")
+                st.write(rec["why_recommended"])
+                st.write("**Evidence IDs**")
+                st.write(rec["evidence_ids"])
+                st.write("**Uncertainties**")
+                st.write(rec["uncertainties"])
+                st.info(f"Next action: {rec['next_action']}")
+
+        st.subheader("System Notes")
+        st.write(data["notes"])

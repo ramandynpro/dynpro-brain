@@ -1,0 +1,15 @@
+[
+  {
+    "evidence_id": "evidence_001",
+    "person_id": "person_001",
+    "skill_name": "Data Engineering",
+    "evidence_text": "Designed and implemented a lakehouse ingestion framework on Azure.",
+    "source_uri": "s3://dynpro-docs/projects/finbank/lakehouse-design.pdf",
+    "observed_at": "2025-11-18",
+    "confidence": 0.82,
+    "metadata": {
+      "workflow_tags": ["expert_finder", "poc_support_finder"],
+      "validated_by": "delivery_manager"
+    }
+  }
+]
