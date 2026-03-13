@@ -11,6 +11,19 @@ def _contains_any(haystack: str, needles: list[str]) -> bool:
     return any(needle.lower() in haystack_lower for needle in needles)
 
 
+def _matches_filter(value: str | None, requested: str | None) -> bool:
+    if not requested:
+        return True
+    return str(value or "").strip().lower() == requested.strip().lower()
+
+
+def _country_from_location(location: str | None) -> str:
+    if not location:
+        return ""
+    parts = [part.strip() for part in location.split(",") if part.strip()]
+    return parts[-1] if parts else ""
+
+
 def _parse_last_updated(value: str | None) -> datetime:
     if not value:
         return datetime.now(UTC)
@@ -39,6 +52,20 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
             (item for item in data.commercial_profiles if item.get("person_id") == person_id),
             None,
         )
+
+        person_timezone = str(person.get("timezone", ""))
+        person_country = _country_from_location(str(person.get("home_location", "")))
+        internal_external = str(person.get("internal_external", "internal"))
+        practice = str(person.get("practice", "Unknown"))
+
+        if not _matches_filter(internal_external, query.internal_external):
+            continue
+        if not _matches_filter(person_country, query.country):
+            continue
+        if not _matches_filter(person_timezone, query.timezone):
+            continue
+        if not _matches_filter(practice, query.practice):
+            continue
 
         combined_text = " ".join(
             [

@@ -11,8 +11,11 @@ class SearchQuery(BaseModel):
     text_query: str = Field(..., description="Plain language request from user.")
     skill_filters: list[str] = Field(default_factory=list)
     domain_filters: list[str] = Field(default_factory=list)
+    internal_external: str | None = None
+    country: str | None = None
     location: str | None = None
     timezone: str | None = None
+    practice: str | None = None
 
 
 class Recommendation(BaseModel):

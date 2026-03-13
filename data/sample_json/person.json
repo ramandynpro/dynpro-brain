@@ -12,6 +12,8 @@
       "source_type": "hr_profile",
       "source_system": "internal_hris",
       "source_record_id": "hr_7781"
-    }
+    },
+    "internal_external": "internal",
+    "practice": "Data & AI"
   }
 ]

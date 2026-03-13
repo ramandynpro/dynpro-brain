@@ -14,6 +14,11 @@ text_query = st.text_area("What are you trying to find?", height=100)
 skills = st.text_input("Skill filters (comma-separated)")
 domains = st.text_input("Domain filters (comma-separated)")
 
+internal_external = st.selectbox("Internal/External", ["Any", "internal", "external"])
+country = st.text_input("Country filter (exact, e.g., India)")
+timezone = st.text_input("Timezone filter (exact, e.g., IST)")
+practice = st.text_input("Practice filter (exact, e.g., Data & AI)")
+
 if st.button("Run Search"):
     if not text_query.strip():
         st.warning("Please enter a query.")
@@ -23,6 +28,10 @@ if st.button("Run Search"):
             "text_query": text_query,
             "skill_filters": [s.strip() for s in skills.split(",") if s.strip()],
             "domain_filters": [d.strip() for d in domains.split(",") if d.strip()],
+            "internal_external": None if internal_external == "Any" else internal_external,
+            "country": country.strip() or None,
+            "timezone": timezone.strip() or None,
+            "practice": practice.strip() or None,
         }
         response = requests.post(f"{API_BASE_URL}/api/v1/search", json=payload, timeout=20)
         response.raise_for_status()
