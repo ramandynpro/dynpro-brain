@@ -42,6 +42,10 @@ class Recommendation(BaseModel):
     full_name: str
     role: str
     confidence_score: float = Field(ge=0, le=1)
+    confidence_band: str
+    evidence_count: int = Field(ge=0)
+    freshness_summary: str
+    source_mix: dict[str, int] = Field(default_factory=dict)
     why_recommended: list[str]
     evidence_ids: list[str]
     uncertainties: list[str]

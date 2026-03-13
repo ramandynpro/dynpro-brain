@@ -70,7 +70,7 @@
     "skill_name": "QA Automation",
     "evidence_text": "Implemented automated data regression suite for regulatory reporting pipelines.",
     "source_uri": "s3://dynpro-docs/projects/retailbank/qa-automation.pdf",
-    "observed_at": "2025-12-12",
+    "observed_at": "2024-05-15",
     "confidence": 0.77,
     "metadata": {
       "workflow_tags": [
