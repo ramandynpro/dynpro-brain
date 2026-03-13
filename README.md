@@ -77,7 +77,7 @@ In the UI:
 - enter a request like: `Need a data engineering lead for BFSI modernization work`
 - add skill filter: `Data Engineering`
 
-You will see a scaffold recommendation with:
+You will see recommendation(s) built from the sample JSON files in `data/sample_json/` with:
 - why recommended
 - evidence IDs
 - uncertainties
@@ -88,4 +88,4 @@ You will see a scaffold recommendation with:
 - This is **not** production-ready.
 - No auth yet (intentionally out of scope).
 - No automatic staffing decisions.
-- Search logic is currently a stub for explainability-first API shape.
+- Search logic now reads from local sample JSON through a simple ingestion loader (still pre-database).
