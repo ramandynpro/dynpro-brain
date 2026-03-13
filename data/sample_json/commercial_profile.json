@@ -13,5 +13,20 @@
       "source_system": "revops",
       "source_record_id": "rev_993"
     }
+  },
+  {
+    "commercial_profile_id": "commercial_002",
+    "person_id": "person_002",
+    "bill_rate_usd": 120.0,
+    "cost_rate_usd": 74.0,
+    "availability_percent": 80,
+    "availability_note": "Rolling off current project; near-full availability expected soon.",
+    "effective_from": "2026-02-15",
+    "confidence": 0.79,
+    "source_provenance": {
+      "source_type": "finance_sheet",
+      "source_system": "revops",
+      "source_record_id": "rev_1088"
+    }
   }
 ]

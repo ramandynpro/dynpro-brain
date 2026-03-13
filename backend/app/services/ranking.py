@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import date, datetime, timezone
 
 from app.models.search import Recommendation, SearchQuery
 from app.services.sample_data import load_sample_data
@@ -26,8 +26,27 @@ def _country_from_location(location: str | None) -> str:
 
 def _parse_last_updated(value: str | None) -> datetime:
     if not value:
-        return datetime.now(UTC)
+        return datetime.now(timezone.utc)
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def _parse_iso_date(value: str | None) -> date | None:
+    if not value:
+        return None
+    return date.fromisoformat(value)
+
+
+def _availability_rank_boost(availability_percent: int, effective_from: date | None) -> float:
+    percent_boost = min(max(availability_percent, 0), 100) / 1000
+    if not effective_from:
+        return percent_boost
+
+    days_until_available = (effective_from - datetime.now(timezone.utc).date()).days
+    if days_until_available <= 0:
+        return percent_boost + 0.03
+    if days_until_available <= 30:
+        return percent_boost + 0.015
+    return percent_boost
 
 
 def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
@@ -67,6 +86,19 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
         if not _matches_filter(practice, query.practice):
             continue
 
+        availability_percent = int((commercial or {}).get("availability_percent", 0))
+        available_from_date = _parse_iso_date((commercial or {}).get("effective_from"))
+
+        if (
+            query.minimum_available_percent is not None
+            and availability_percent < query.minimum_available_percent
+        ):
+            continue
+        if query.available_by_date and (
+            not available_from_date or available_from_date > query.available_by_date
+        ):
+            continue
+
         combined_text = " ".join(
             [
                 str(person.get("summary", "")),
@@ -88,6 +120,8 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
             confidence_parts.append(float(commercial.get("confidence", 0.5)))
 
         confidence = round(sum(confidence_parts) / max(len(confidence_parts), 1), 2)
+        availability_boost = _availability_rank_boost(availability_percent, available_from_date)
+        confidence = round(min(1.0, confidence + availability_boost), 2)
 
         why_recommended = [
             "Profile summary and project history match the current request context.",
@@ -100,6 +134,13 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
             domains = ", ".join(sorted({a.get("domain", "unknown") for a in assignments}))
             why_recommended.append(
                 f"Recent assignment evidence found in domains: {domains}."
+            )
+        if availability_percent > 0 or available_from_date:
+            availability_detail = f"{availability_percent}% availability"
+            if available_from_date:
+                availability_detail += f" from {available_from_date.isoformat()}"
+            why_recommended.append(
+                f"Availability influenced ranking with a small boost ({availability_detail})."
             )
 
         uncertainties = [

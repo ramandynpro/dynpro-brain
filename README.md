@@ -76,9 +76,9 @@ In the UI:
 - choose workflow: `expert_finder`
 - enter a request like: `Need a data engineering lead for BFSI modernization work`
 - add skill filter: `Data Engineering`
-- optionally set structured filters: `internal/external`, `country`, `timezone`, and `practice`
+- optionally set structured filters: `internal/external`, `country`, `timezone`, `practice`, `minimum available percent`, and `available by date`
 
-The backend now applies those structured filters directly to the sample JSON records before ranking and returning results.
+The backend applies these structured filters directly to the sample JSON records before ranking and returning results. Availability also gives a small ranking boost to people who are more available sooner.
 
 You will see recommendation(s) built from the sample JSON files in `data/sample_json/` with:
 - why recommended
