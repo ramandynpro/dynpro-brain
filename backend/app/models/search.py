@@ -20,6 +20,8 @@ class SearchQuery(BaseModel):
     available_by_date: date | None = None
     max_bill_rate: float | None = Field(default=None, gt=0)
     budget_band: str | None = None
+    interviewer_only: bool = False
+    minimum_prior_interview_count: int | None = Field(default=None, ge=0)
 
 
 class Recommendation(BaseModel):

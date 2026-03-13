@@ -14,7 +14,11 @@
       "source_record_id": "hr_7781"
     },
     "internal_external": "internal",
-    "practice": "Data & AI"
+    "practice": "Data & AI",
+    "interviewer_suitable": true,
+    "willing_to_interview": true,
+    "prior_interview_count": 14,
+    "client_facing_comfort": "high"
   },
   {
     "person_id": "person_002",
@@ -31,6 +35,10 @@
       "source_record_id": "hr_9011"
     },
     "internal_external": "internal",
-    "practice": "Data & AI"
+    "practice": "Data & AI",
+    "interviewer_suitable": true,
+    "willing_to_interview": false,
+    "prior_interview_count": 3,
+    "client_facing_comfort": "medium"
   }
 ]
