@@ -11,5 +11,18 @@
       "workflow_tags": ["expert_finder", "poc_support_finder"],
       "validated_by": "delivery_manager"
     }
+  },
+  {
+    "evidence_id": "evidence_002",
+    "person_id": "person_002",
+    "skill_name": "Data Engineering",
+    "evidence_text": "Implemented scalable ETL pipelines and data quality checks for BFSI reporting.",
+    "source_uri": "s3://dynpro-docs/projects/payments/pipeline-design.pdf",
+    "observed_at": "2025-12-04",
+    "confidence": 0.8,
+    "metadata": {
+      "workflow_tags": ["expert_finder", "interviewer_finder"],
+      "validated_by": "delivery_manager"
+    }
   }
 ]

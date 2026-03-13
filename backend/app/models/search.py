@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -16,6 +16,8 @@ class SearchQuery(BaseModel):
     location: str | None = None
     timezone: str | None = None
     practice: str | None = None
+    minimum_available_percent: int | None = Field(default=None, ge=0, le=100)
+    available_by_date: date | None = None
 
 
 class Recommendation(BaseModel):

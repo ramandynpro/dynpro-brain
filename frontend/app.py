@@ -1,3 +1,5 @@
+from datetime import date
+
 import requests
 import streamlit as st
 
@@ -18,6 +20,11 @@ internal_external = st.selectbox("Internal/External", ["Any", "internal", "exter
 country = st.text_input("Country filter (exact, e.g., India)")
 timezone = st.text_input("Timezone filter (exact, e.g., IST)")
 practice = st.text_input("Practice filter (exact, e.g., Data & AI)")
+minimum_available_percent = st.slider(
+    "Minimum available percent", min_value=0, max_value=100, value=0, step=5
+)
+use_available_by_date = st.checkbox("Only include people available by a date")
+available_by_date = st.date_input("Available by date", value=date.today(), disabled=not use_available_by_date)
 
 if st.button("Run Search"):
     if not text_query.strip():
@@ -32,6 +39,10 @@ if st.button("Run Search"):
             "country": country.strip() or None,
             "timezone": timezone.strip() or None,
             "practice": practice.strip() or None,
+            "minimum_available_percent": (
+                minimum_available_percent if minimum_available_percent > 0 else None
+            ),
+            "available_by_date": available_by_date.isoformat() if use_available_by_date else None,
         }
         response = requests.post(f"{API_BASE_URL}/api/v1/search", json=payload, timeout=20)
         response.raise_for_status()

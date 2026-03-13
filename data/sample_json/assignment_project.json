@@ -15,5 +15,22 @@
       "source_system": "delivery_tracker",
       "source_record_id": "proj_447"
     }
+  },
+  {
+    "project_id": "project_002",
+    "person_id": "person_002",
+    "project_name": "RetailBank Data Platform Stabilization",
+    "client_name": "RetailBank",
+    "domain": "BFSI",
+    "role_on_project": "Lead Engineer",
+    "start_date": "2025-04-01",
+    "end_date": "2026-01-30",
+    "project_summary": "Stabilized batch pipelines and improved SLA reliability for risk dashboards.",
+    "confidence": 0.83,
+    "source_provenance": {
+      "source_type": "project_system",
+      "source_system": "delivery_tracker",
+      "source_record_id": "proj_662"
+    }
   }
 ]

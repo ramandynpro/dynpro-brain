@@ -15,5 +15,22 @@
     },
     "internal_external": "internal",
     "practice": "Data & AI"
+  },
+  {
+    "person_id": "person_002",
+    "full_name": "Ravi Singh",
+    "current_role": "Senior Data Engineer",
+    "home_location": "Pune, India",
+    "timezone": "IST",
+    "summary": "Builds enterprise data pipelines and analytics products for banking teams.",
+    "profile_last_updated_at": "2026-02-07T09:30:00Z",
+    "profile_confidence": 0.84,
+    "source_provenance": {
+      "source_type": "hr_profile",
+      "source_system": "internal_hris",
+      "source_record_id": "hr_9011"
+    },
+    "internal_external": "internal",
+    "practice": "Data & AI"
   }
 ]
