@@ -73,12 +73,12 @@ UI will open in your browser (usually `http://localhost:8501`).
 ## 5) Try a sample search
 
 In the UI:
-- choose workflow: `expert_finder`
+- choose workflow: `expert_finder` (or `poc_support_finder` for POC staffing support)
 - enter a request like: `Need a data engineering lead for BFSI modernization work`
 - add skill filter: `Data Engineering`
-- optionally set structured filters: `internal/external`, `country`, `timezone`, `practice`, `client name`, `domain name`, `minimum available percent`, `max bill rate`, `budget band`, `interviewer only`, `minimum prior interview count`, and `available by date`
+- optionally set structured filters: `internal/external`, `country`, `timezone`, `practice`, `client name`, `domain name`, `minimum available percent`, `max bill rate`, `budget band`, `interviewer only`, `minimum prior interview count`, `POC support only`, `minimum client-facing comfort`, `minimum POC participation count`, and `available by date`
 
-The backend applies these structured filters directly to the sample JSON records before ranking and returning results. Client/domain filtering checks assignment/project history first, and also uses person-level `top_clients` and `top_domains` when present. Availability gives a small ranking boost to people who are more available sooner. Budget fit also gives a small ranking boost when a person is comfortably within the selected budget constraints. Client/domain relevance gives a small ranking boost and is called out in recommendation explanations when it changes rank. When interviewer search is relevant, interviewer readiness also gives a small ranking boost and is called out in the explanation.
+The backend applies these structured filters directly to the sample JSON records before ranking and returning results. Client/domain filtering checks assignment/project history first, and also uses person-level `top_clients` and `top_domains` when present. Availability gives a small ranking boost to people who are more available sooner. Budget fit also gives a small ranking boost when a person is comfortably within the selected budget constraints. Client/domain relevance gives a small ranking boost and is called out in recommendation explanations when it changes rank. When interviewer search is relevant, interviewer readiness also gives a small ranking boost and is called out in the explanation. For POC support finder workflows, POC readiness (willingness, prior POC/presales participation, and client-facing comfort) now also gives a small ranking boost and is called out in the explanation.
 
 For Phase 1 privacy, UI recommendations keep commercial output light and use budget-fit wording instead of exposing raw commercial details.
 

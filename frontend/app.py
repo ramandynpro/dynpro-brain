@@ -10,7 +10,7 @@ st.caption("Decision support for capability intelligence (human-in-the-loop).")
 
 workflow = st.selectbox(
     "Workflow",
-    ["expert_finder", "interviewer_finder", "client_domain_finder"],
+    ["expert_finder", "interviewer_finder", "client_domain_finder", "poc_support_finder"],
 )
 text_query = st.text_area("What are you trying to find?", height=100)
 skills = st.text_input("Skill filters (comma-separated)")
@@ -33,6 +33,13 @@ budget_band = st.selectbox("Budget band", ["Any", "economy", "standard", "premiu
 interviewer_only = st.checkbox("Interviewer only")
 minimum_prior_interview_count = st.number_input(
     "Minimum prior interview count", min_value=0, value=0, step=1
+)
+poc_support_only = st.checkbox("POC support only")
+minimum_client_facing_comfort = st.selectbox(
+    "Minimum client-facing comfort", ["Any", "low", "medium", "high"]
+)
+minimum_poc_participation_count = st.number_input(
+    "Minimum POC participation count", min_value=0, value=0, step=1
 )
 use_available_by_date = st.checkbox("Only include people available by a date")
 available_by_date = st.date_input("Available by date", value=date.today(), disabled=not use_available_by_date)
@@ -60,6 +67,13 @@ if st.button("Run Search"):
             "interviewer_only": interviewer_only,
             "minimum_prior_interview_count": (
                 minimum_prior_interview_count if minimum_prior_interview_count > 0 else None
+            ),
+            "poc_support_only": poc_support_only,
+            "minimum_client_facing_comfort": (
+                None if minimum_client_facing_comfort == "Any" else minimum_client_facing_comfort
+            ),
+            "minimum_poc_participation_count": (
+                minimum_poc_participation_count if minimum_poc_participation_count > 0 else None
             ),
             "available_by_date": available_by_date.isoformat() if use_available_by_date else None,
         }

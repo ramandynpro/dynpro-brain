@@ -11,6 +11,17 @@ BUDGET_BAND_LIMITS = {
 }
 
 
+CLIENT_FACING_COMFORT_LEVELS = {
+    "low": 1,
+    "medium": 2,
+    "high": 3,
+}
+
+
+def _client_facing_comfort_level(value: str | None) -> int:
+    return CLIENT_FACING_COMFORT_LEVELS.get(str(value or "").strip().lower(), 0)
+
+
 def _contains_any(haystack: str, needles: list[str]) -> bool:
     if not needles:
         return True
@@ -207,11 +218,32 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
         prior_interview_count = int(person.get("prior_interview_count", 0) or 0)
         interviewer_ready = interviewer_suitable and willing_to_interview
 
+        willing_to_support_pocs = bool(person.get("willing_to_support_pocs", False))
+        poc_participation_count = int(person.get("poc_participation_count", 0) or 0)
+        presales_participation_count = int(person.get("presales_participation_count", 0) or 0)
+        client_facing_comfort = str(person.get("client_facing_comfort", ""))
+        client_facing_comfort_level = _client_facing_comfort_level(client_facing_comfort)
+        minimum_client_facing_comfort_level = _client_facing_comfort_level(
+            query.minimum_client_facing_comfort
+        )
+
         if query.interviewer_only and not interviewer_ready:
             continue
         if (
             query.minimum_prior_interview_count is not None
             and prior_interview_count < query.minimum_prior_interview_count
+        ):
+            continue
+        if query.poc_support_only and not willing_to_support_pocs:
+            continue
+        if (
+            minimum_client_facing_comfort_level > 0
+            and client_facing_comfort_level < minimum_client_facing_comfort_level
+        ):
+            continue
+        if (
+            query.minimum_poc_participation_count is not None
+            and poc_participation_count < query.minimum_poc_participation_count
         ):
             continue
 
@@ -255,6 +287,19 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
         if interviewer_relevant and interviewer_ready:
             interviewer_boost = 0.02 + min(prior_interview_count, 10) / 1000
 
+        poc_support_boost = 0.0
+        poc_support_relevant = (
+            query.workflow == "poc_support_finder"
+            or query.poc_support_only
+            or query.minimum_poc_participation_count is not None
+        )
+        if poc_support_relevant and willing_to_support_pocs:
+            poc_support_boost = 0.02 + min(poc_participation_count, 10) / 1000
+            if client_facing_comfort_level >= CLIENT_FACING_COMFORT_LEVELS["medium"]:
+                poc_support_boost += 0.005
+            if presales_participation_count > 0:
+                poc_support_boost += min(presales_participation_count, 5) / 2000
+
         confidence = round(
             min(
                 1.0,
@@ -262,7 +307,8 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
                 + availability_boost
                 + budget_boost
                 + client_domain_boost
-                + interviewer_boost,
+                + interviewer_boost
+                + poc_support_boost,
             ),
             2,
         )
@@ -299,6 +345,12 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
             why_recommended.append(
                 "Interviewer readiness influenced ranking with a small boost "
                 f"(prior interviews: {prior_interview_count}, client-facing comfort: {person.get('client_facing_comfort', 'unknown')})."
+            )
+        if poc_support_boost > 0:
+            why_recommended.append(
+                "POC readiness influenced ranking with a small boost "
+                f"(willing to support POCs: {willing_to_support_pocs}, POC participation: {poc_participation_count}, "
+                f"presales participation: {presales_participation_count}, client-facing comfort: {client_facing_comfort or 'unknown'})."
             )
 
         uncertainties = [

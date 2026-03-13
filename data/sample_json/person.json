@@ -26,7 +26,10 @@
     "top_domains": [
       "BFSI",
       "Risk & Compliance"
-    ]
+    ],
+    "willing_to_support_pocs": true,
+    "poc_participation_count": 9,
+    "presales_participation_count": 6
   },
   {
     "person_id": "person_002",
@@ -53,6 +56,9 @@
     ],
     "top_domains": [
       "BFSI"
-    ]
+    ],
+    "willing_to_support_pocs": false,
+    "poc_participation_count": 2,
+    "presales_participation_count": 1
   }
 ]
