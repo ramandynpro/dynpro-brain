@@ -28,6 +28,10 @@ max_bill_rate = st.number_input(
     help="Use this when you want budget-aware matching without showing raw commercial detail in results."
 )
 budget_band = st.selectbox("Budget band", ["Any", "economy", "standard", "premium"])
+interviewer_only = st.checkbox("Interviewer only")
+minimum_prior_interview_count = st.number_input(
+    "Minimum prior interview count", min_value=0, value=0, step=1
+)
 use_available_by_date = st.checkbox("Only include people available by a date")
 available_by_date = st.date_input("Available by date", value=date.today(), disabled=not use_available_by_date)
 
@@ -49,6 +53,10 @@ if st.button("Run Search"):
             ),
             "max_bill_rate": max_bill_rate if max_bill_rate > 0 else None,
             "budget_band": None if budget_band == "Any" else budget_band,
+            "interviewer_only": interviewer_only,
+            "minimum_prior_interview_count": (
+                minimum_prior_interview_count if minimum_prior_interview_count > 0 else None
+            ),
             "available_by_date": available_by_date.isoformat() if use_available_by_date else None,
         }
         response = requests.post(f"{API_BASE_URL}/api/v1/search", json=payload, timeout=20)

@@ -137,6 +137,19 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
         ):
             continue
 
+        interviewer_suitable = bool(person.get("interviewer_suitable", False))
+        willing_to_interview = bool(person.get("willing_to_interview", False))
+        prior_interview_count = int(person.get("prior_interview_count", 0) or 0)
+        interviewer_ready = interviewer_suitable and willing_to_interview
+
+        if query.interviewer_only and not interviewer_ready:
+            continue
+        if (
+            query.minimum_prior_interview_count is not None
+            and prior_interview_count < query.minimum_prior_interview_count
+        ):
+            continue
+
         combined_text = " ".join(
             [
                 str(person.get("summary", "")),
@@ -160,7 +173,20 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
         confidence = round(sum(confidence_parts) / max(len(confidence_parts), 1), 2)
         availability_boost = _availability_rank_boost(availability_percent, available_from_date)
         budget_boost = _budget_fit_rank_boost(bill_rate, budget_limit)
-        confidence = round(min(1.0, confidence + availability_boost + budget_boost), 2)
+
+        interviewer_boost = 0.0
+        interviewer_relevant = (
+            query.workflow == "interviewer_finder"
+            or query.interviewer_only
+            or query.minimum_prior_interview_count is not None
+        )
+        if interviewer_relevant and interviewer_ready:
+            interviewer_boost = 0.02 + min(prior_interview_count, 10) / 1000
+
+        confidence = round(
+            min(1.0, confidence + availability_boost + budget_boost + interviewer_boost),
+            2,
+        )
 
         why_recommended = [
             "Profile summary and project history match the current request context.",
@@ -184,6 +210,11 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
         if budget_boost > 0 and budget_limit is not None:
             why_recommended.append(
                 "Budget fit influenced ranking with a small boost (good fit to selected budget constraints)."
+            )
+        if interviewer_boost > 0:
+            why_recommended.append(
+                "Interviewer readiness influenced ranking with a small boost "
+                f"(prior interviews: {prior_interview_count}, client-facing comfort: {person.get('client_facing_comfort', 'unknown')})."
             )
 
         uncertainties = [
