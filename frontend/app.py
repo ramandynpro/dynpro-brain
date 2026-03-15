@@ -90,8 +90,11 @@ def run_search(payload: dict) -> dict:
 
 def render_data_source_note(data: dict) -> None:
     data_sources = data.get("data_sources") or ["sample"]
-    label = " + ".join(data_sources)
-    st.caption(f"People data source: {label}")
+    assignment_data_sources = data.get("assignment_data_sources") or ["sample"]
+    people_label = " + ".join(data_sources)
+    assignment_label = " + ".join(assignment_data_sources)
+    st.caption(f"People data source: {people_label}")
+    st.caption(f"Assignment/project data source: {assignment_label}")
 
 def render_leadership_demo_result(scenario: dict, payload: dict, data: dict) -> None:
     st.markdown("### Request summary")

@@ -20,11 +20,19 @@ def search_people(query: SearchQuery) -> SearchResponse:
         recommendations = []
         pod_recommendation = build_pod_for_query(query)
 
-    data_sources = load_sample_data().people_data_sources
-    source_note = (
-        "Results currently use local sample people data."
+    sample_data = load_sample_data()
+    data_sources = sample_data.people_data_sources
+    assignment_data_sources = sample_data.assignment_data_sources
+
+    people_source_note = (
+        "People results currently use local sample data."
         if data_sources == ["sample"]
-        else "Results currently use merged local sample + pilot people data (pilot records override sample on matching person_id)."
+        else "People results currently use merged local sample + pilot data (pilot records override sample on matching person_id)."
+    )
+    assignment_source_note = (
+        "Assignment/project context currently uses local sample data."
+        if assignment_data_sources == ["sample"]
+        else "Assignment/project context currently uses merged local sample + pilot data (pilot records override sample on matching assignment_id/project_id)."
     )
 
     response = SearchResponse(
@@ -32,10 +40,12 @@ def search_people(query: SearchQuery) -> SearchResponse:
         recommendations=recommendations,
         pod_recommendation=pod_recommendation,
         data_sources=data_sources,
+        assignment_data_sources=assignment_data_sources,
         notes=[
             "Human review is required before making staffing decisions.",
             "Scores are confidence hints, not final truth.",
-            source_note,
+            people_source_note,
+            assignment_source_note,
         ],
     )
     response.request_id = log_search_request(query=query, response=response)

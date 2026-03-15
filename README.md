@@ -239,16 +239,98 @@ python -m backend.app.services.pilot_csv_importer \
 DYNPRO_PILOT_PEOPLE_PATH=data/sample_json/person.imported.json uvicorn backend.app.main:app --reload
 ```
 
+
+## Pilot assignment/project CSV intake and importer (Phase 1 simple)
+
+This is a local-only pilot intake utility to load real assignment/project history into the existing canonical `assignment_project.json` shape.
+
+### CSV columns to use
+
+Use `data/pilot_csv/assignment_project_intake_template.csv` as your starter file.
+
+Required columns (must be present and populated on each row):
+- `assignment_id`
+- `person_id`
+- `client`
+- `project_name`
+- `role`
+
+Recommended optional columns:
+- `domain`
+- `start_date`
+- `end_date`
+- `project_summary`
+- `confidence`
+- `source_type`
+- `source_system`
+- `source_record_id`
+
+A ready-to-copy example with 4 rows is in `data/pilot_csv/example_pilot_assignment_project.csv`.
+
+### How to import a pilot assignment/project CSV file
+
+From the repo root:
+
+```bash
+python -m backend.app.services.pilot_assignment_csv_importer \
+  --input data/pilot_csv/example_pilot_assignment_project.csv \
+  --output data/sample_json/assignment_project.imported.json
+```
+
+What this importer does (kept simple for Phase 1):
+- reads a local CSV file only
+- validates required columns and values with friendly row-level errors
+- maps rows into the canonical assignment/project JSON fields (`project_id`, `client_name`, `role_on_project`)
+- keeps source provenance fields for explainability
+
+No auth, no production infrastructure, and no ETL pipeline are added.
+
+## Run search with imported pilot people and assignment/project data (Phase 1 simple)
+
+By default, search reads from:
+- `data/sample_json/person.json`
+- `data/sample_json/assignment_project.json`
+
+If you want search/ranking to include imported pilot files alongside sample data:
+
+1. Import pilot people CSV (example):
+
+```bash
+python -m backend.app.services.pilot_csv_importer \
+  --input data/pilot_csv/example_pilot_people.csv \
+  --output data/sample_json/person.imported.json
+```
+
+2. Import pilot assignment/project CSV (example):
+
+```bash
+python -m backend.app.services.pilot_assignment_csv_importer \
+  --input data/pilot_csv/example_pilot_assignment_project.csv \
+  --output data/sample_json/assignment_project.imported.json
+```
+
+3. Start backend with optional pilot file paths:
+
+```bash
+DYNPRO_PILOT_PEOPLE_PATH=data/sample_json/person.imported.json \
+DYNPRO_PILOT_ASSIGNMENTS_PATH=data/sample_json/assignment_project.imported.json \
+uvicorn backend.app.main:app --reload
+```
+
+In results, the UI now shows a tiny data-source note for both people data and assignment/project data: sample, pilot, or sample + pilot.
+
 Optional configuration knobs:
 - `DYNPRO_SAMPLE_DATA_DIR` (default: `data/sample_json`)
-- `DYNPRO_PILOT_PEOPLE_PATH` (optional local JSON file from importer)
+- `DYNPRO_PILOT_PEOPLE_PATH` (optional local JSON file from people importer)
+- `DYNPRO_PILOT_ASSIGNMENTS_PATH` (optional local JSON file from assignment/project importer)
 
 Simple behavior when both files are present:
-- search uses sample people + pilot people together
-- if the same `person_id` exists in both, the pilot record replaces the sample record
-- recommendations still use the same confidence/freshness logic and source provenance fields already in person/evidence data
+- search uses sample + pilot people together, and sample + pilot assignment/project data together
+- if the same `person_id` exists in people files, the pilot person record replaces the sample person record
+- if the same `assignment_id`/`project_id` exists in assignment/project files, the pilot assignment/project record replaces the sample one
+- recommendations still use the same confidence/freshness logic and source provenance fields
 
-In the Streamlit UI, a small "People data source" note shows whether results used sample data, pilot data, or both.
+In the Streamlit UI, small data-source notes show whether people and assignment/project context used sample data, pilot data, or both.
 
 ## Notes
 

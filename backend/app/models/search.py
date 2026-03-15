@@ -59,4 +59,5 @@ class SearchResponse(BaseModel):
     recommendations: list[Recommendation]
     pod_recommendation: dict | None = None
     data_sources: list[str] = Field(default_factory=list)
+    assignment_data_sources: list[str] = Field(default_factory=list)
     notes: list[str]
