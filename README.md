@@ -219,6 +219,37 @@ What this importer does (and keeps simple for Phase 1):
 
 No auth, no production infrastructure, and no ETL pipeline are added.
 
+## Run search with imported pilot people data (Phase 1 simple)
+
+By default, search reads people from `data/sample_json/person.json`.
+
+If you also want search to use imported pilot people:
+
+1. Import a pilot CSV to JSON (example):
+
+```bash
+python -m backend.app.services.pilot_csv_importer \
+  --input data/pilot_csv/example_pilot_people.csv \
+  --output data/sample_json/person.imported.json
+```
+
+2. Start backend with optional pilot people path set:
+
+```bash
+DYNPRO_PILOT_PEOPLE_PATH=data/sample_json/person.imported.json uvicorn backend.app.main:app --reload
+```
+
+Optional configuration knobs:
+- `DYNPRO_SAMPLE_DATA_DIR` (default: `data/sample_json`)
+- `DYNPRO_PILOT_PEOPLE_PATH` (optional local JSON file from importer)
+
+Simple behavior when both files are present:
+- search uses sample people + pilot people together
+- if the same `person_id` exists in both, the pilot record replaces the sample record
+- recommendations still use the same confidence/freshness logic and source provenance fields already in person/evidence data
+
+In the Streamlit UI, a small "People data source" note shows whether results used sample data, pilot data, or both.
+
 ## Notes
 
 - This is **not** production-ready.

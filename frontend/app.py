@@ -88,6 +88,11 @@ def run_search(payload: dict) -> dict:
     return data
 
 
+def render_data_source_note(data: dict) -> None:
+    data_sources = data.get("data_sources") or ["sample"]
+    label = " + ".join(data_sources)
+    st.caption(f"People data source: {label}")
+
 def render_leadership_demo_result(scenario: dict, payload: dict, data: dict) -> None:
     st.markdown("### Request summary")
     st.write(payload["text_query"])
@@ -216,6 +221,7 @@ if view_mode == "Leadership Demo":
             "budget_ceiling": selected_scenario["payload"].get("budget_ceiling"),
         }
         data = run_search(payload)
+        render_data_source_note(data)
         render_leadership_demo_result(selected_scenario, payload, data)
 
     st.divider()
@@ -340,6 +346,8 @@ if st.button("Run Search"):
             "budget_ceiling": budget_ceiling if budget_ceiling > 0 else None,
         }
         data = run_search(payload)
+
+        render_data_source_note(data)
 
         if workflow == "pod_builder" and data.get("pod_recommendation"):
             pod = data["pod_recommendation"]

@@ -6,6 +6,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from app.core.config import settings
+
 
 @dataclass(frozen=True)
 class SampleDataBundle:
@@ -14,10 +16,35 @@ class SampleDataBundle:
     assignments: list[dict[str, Any]]
     commercial_profiles: list[dict[str, Any]]
     relationship_edges: list[dict[str, Any]]
+    people_data_sources: list[str]
+
+
+@dataclass(frozen=True)
+class PeopleDataConfig:
+    sample_data_dir: Path
+    pilot_people_data_path: Path | None
 
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
+
+
+def _resolve_people_data_config() -> PeopleDataConfig:
+    repo_root = _repo_root()
+    sample_data_dir = Path(settings.sample_data_dir)
+    if not sample_data_dir.is_absolute():
+        sample_data_dir = repo_root / sample_data_dir
+
+    pilot_people_data_path: Path | None = None
+    if settings.pilot_people_data_path:
+        pilot_people_data_path = Path(settings.pilot_people_data_path)
+        if not pilot_people_data_path.is_absolute():
+            pilot_people_data_path = repo_root / pilot_people_data_path
+
+    return PeopleDataConfig(
+        sample_data_dir=sample_data_dir,
+        pilot_people_data_path=pilot_people_data_path,
+    )
 
 
 def _load_json_array(path: Path) -> list[dict[str, Any]]:
@@ -30,19 +57,50 @@ def _load_json_array(path: Path) -> list[dict[str, Any]]:
     return [item for item in payload if isinstance(item, dict)]
 
 
+def _merge_people_records(sample_people: list[dict[str, Any]], pilot_people: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    merged_by_id: dict[str, dict[str, Any]] = {}
+
+    for person in sample_people:
+        person_id = str(person.get("person_id", "")).strip()
+        if not person_id:
+            continue
+        merged_by_id[person_id] = person
+
+    for person in pilot_people:
+        person_id = str(person.get("person_id", "")).strip()
+        if not person_id:
+            continue
+        # Keep Phase 1 behavior simple: pilot people replace sample records with same person_id.
+        merged_by_id[person_id] = person
+
+    return list(merged_by_id.values())
+
+
 @lru_cache(maxsize=1)
 def load_sample_data() -> SampleDataBundle:
     """
-    Load Phase-1 sample JSON once per process.
-    Data remains easy to inspect and replace while we are pre-database.
+    Load Phase-1 local JSON once per process.
+    Supports sample data and an optional pilot people file from CSV importer output.
     """
 
-    sample_dir = _repo_root() / "data" / "sample_json"
+    data_config = _resolve_people_data_config()
+    sample_dir = data_config.sample_data_dir
+
+    sample_people = _load_json_array(sample_dir / "person.json")
+
+    people_data_sources = ["sample"]
+    if data_config.pilot_people_data_path and data_config.pilot_people_data_path.exists():
+        pilot_people = _load_json_array(data_config.pilot_people_data_path)
+        people = _merge_people_records(sample_people=sample_people, pilot_people=pilot_people)
+        people_data_sources.append("pilot")
+    else:
+        people = sample_people
 
     return SampleDataBundle(
-        people=_load_json_array(sample_dir / "person.json"),
+        people=people,
         skill_evidence=_load_json_array(sample_dir / "skill_evidence.json"),
         assignments=_load_json_array(sample_dir / "assignment_project.json"),
         commercial_profiles=_load_json_array(sample_dir / "commercial_profile.json"),
         relationship_edges=_load_json_array(sample_dir / "relationship_edge.json"),
+        people_data_sources=people_data_sources,
     )
