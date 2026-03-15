@@ -1,7 +1,16 @@
 from fastapi import APIRouter, Query
 
-from app.models.pilot import PilotFeedbackCreate, PilotFeedbackRecord, PilotRecentResponse
-from app.services.pilot_tracking import get_recent_requests_with_feedback, submit_feedback
+from app.models.pilot import (
+    PilotFeedbackCreate,
+    PilotFeedbackRecord,
+    PilotKpiSummary,
+    PilotRecentResponse,
+)
+from app.services.pilot_tracking import (
+    get_kpi_summary,
+    get_recent_requests_with_feedback,
+    submit_feedback,
+)
 
 router = APIRouter(prefix="/pilot", tags=["pilot"])
 
@@ -14,3 +23,8 @@ def create_feedback(feedback: PilotFeedbackCreate) -> PilotFeedbackRecord:
 @router.get("/recent", response_model=PilotRecentResponse)
 def list_recent_pilot_activity(limit: int = Query(default=20, ge=1, le=100)) -> PilotRecentResponse:
     return get_recent_requests_with_feedback(limit=limit)
+
+
+@router.get("/kpi-summary", response_model=PilotKpiSummary)
+def get_pilot_kpi_summary(limit: int = Query(default=20, ge=1, le=100)) -> PilotKpiSummary:
+    return get_kpi_summary(limit=limit)

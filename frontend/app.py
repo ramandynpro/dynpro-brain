@@ -212,3 +212,41 @@ if st.session_state.get("last_request_id"):
         )
         feedback_response.raise_for_status()
         st.success("Thanks — pilot feedback captured.")
+
+
+st.divider()
+st.subheader("Pilot Admin View (Phase 1)")
+st.caption("Simple pilot KPI readout from local request + feedback logs.")
+
+if st.button("Refresh Pilot KPI Summary"):
+    st.session_state["refresh_pilot_kpi"] = True
+
+if st.session_state.get("refresh_pilot_kpi", True):
+    kpi_response = requests.get(f"{API_BASE_URL}/api/v1/pilot/kpi-summary", params={"limit": 20}, timeout=20)
+    kpi_response.raise_for_status()
+    kpi = kpi_response.json()
+
+    kpi_col_1, kpi_col_2, kpi_col_3, kpi_col_4 = st.columns(4)
+    kpi_col_1.metric("Total requests", kpi.get("total_requests", 0))
+    kpi_col_2.metric("Average trust rating", kpi.get("average_trust_rating") or "n/a")
+    useful_yes_rate = kpi.get("useful_yes_rate")
+    useful_yes_percent = f"{round(useful_yes_rate * 100, 1)}%" if useful_yes_rate is not None else "n/a"
+    kpi_col_3.metric("Useful yes rate", useful_yes_percent)
+    kpi_col_4.metric("Recent missed-person/gap count", kpi.get("recent_missed_person_or_gap_count", 0))
+
+    kpi_col_5, kpi_col_6 = st.columns(2)
+    kpi_col_5.metric("Pod builder request count", kpi.get("pod_builder_request_count", 0))
+    kpi_col_6.metric("Interviewer finder request count", kpi.get("interviewer_finder_request_count", 0))
+
+    st.markdown("#### Requests by workflow")
+    st.json(kpi.get("requests_by_workflow", {}))
+
+    if kpi.get("duration_summary"):
+        st.markdown("#### Duration summary")
+        st.json(kpi["duration_summary"])
+
+    st.markdown("#### Recent requests")
+    st.dataframe(kpi.get("recent_requests", []), use_container_width=True)
+
+    st.markdown("#### Recent feedback")
+    st.dataframe(kpi.get("recent_feedback", []), use_container_width=True)
