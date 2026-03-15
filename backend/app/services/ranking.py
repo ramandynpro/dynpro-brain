@@ -18,6 +18,20 @@ CLIENT_FACING_COMFORT_LEVELS = {
 }
 
 
+VALID_VIEWER_MODES = {"broad_user", "commercial_aware"}
+
+
+def normalize_viewer_mode(viewer_mode: str | None) -> str:
+    mode = str(viewer_mode or "").strip().lower()
+    if mode in VALID_VIEWER_MODES:
+        return mode
+    return "broad_user"
+
+
+def is_commercial_aware_mode(viewer_mode: str | None) -> bool:
+    return normalize_viewer_mode(viewer_mode) == "commercial_aware"
+
+
 def _client_facing_comfort_level(value: str | None) -> int:
     return CLIENT_FACING_COMFORT_LEVELS.get(str(value or "").strip().lower(), 0)
 
@@ -416,6 +430,8 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
     Uses lightweight lexical matching and explainability fields.
     """
 
+    viewer_mode = normalize_viewer_mode(query.viewer_mode)
+    commercial_aware = is_commercial_aware_mode(viewer_mode)
     data = load_sample_data()
     scored_recommendations: list[tuple[float, Recommendation]] = []
     relationship_lookup = _build_relationship_lookup(data.relationship_edges)
@@ -647,6 +663,10 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
         uncertainties = [
             "Validate latest availability with delivery lead before staffing.",
         ]
+        if not commercial_aware:
+            uncertainties.append(
+                "Commercial details are intentionally masked in broad_user mode; confirm exact rates with commercial_aware view."
+            )
         if commercial and commercial.get("availability_note"):
             uncertainties.append(str(commercial["availability_note"]))
         if commercial and commercial.get("engagement_model"):
@@ -690,6 +710,8 @@ def build_pod_for_query(query: SearchQuery) -> dict:
     """Simple explainable Phase-1 pod builder workflow using sample JSON."""
 
     data = load_sample_data()
+    viewer_mode = normalize_viewer_mode(query.viewer_mode)
+    commercial_aware = is_commercial_aware_mode(viewer_mode)
     required_skills = {_normalized_text(skill) for skill in query.required_skills if skill.strip()}
     desired_roles = [_normalized_text(role) for role in query.desired_roles if role.strip()]
     pod_size = query.pod_size or 3
@@ -862,6 +884,10 @@ def build_pod_for_query(query: SearchQuery) -> dict:
         "Role assignment is based on current-role text match and should be reviewed by a delivery lead.",
         "Availability can change quickly and should be re-confirmed before client commitment.",
     ]
+    if not commercial_aware:
+        uncertainties.append(
+            "Exact commercial fields are intentionally masked in broad_user mode; use commercial_aware mode for detailed rates."
+        )
 
     return {
         "recommended_people": [

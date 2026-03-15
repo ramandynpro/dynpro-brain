@@ -480,3 +480,22 @@ What the response includes:
 - explainability fields (why selected, satisfied constraints, partially satisfied constraints, uncertainties, next action)
 
 Important: this is still decision support only. A delivery lead should review pod suggestions before staffing decisions.
+
+
+## Phase 1 governance mode (simple commercial masking)
+
+This MVP now has a **local viewer mode** selector in Streamlit (no auth, no real permissions system):
+- `broad_user`
+- `commercial_aware`
+
+How it works:
+- `broad_user` mode keeps recommendations and explainability fully active, but masks exact raw commercial rate fields in the UI.
+  - Recommendation quality, confidence, freshness, and evidence explanations still appear.
+  - Pod and budget sections use budget-fit wording / budget bands instead of exact rate numbers.
+  - Cards include a note when commercial details are intentionally masked.
+- `commercial_aware` mode shows the existing detailed commercial values already used by the app.
+
+This is intentionally a small Phase 1 governance layer only:
+- no auth
+- no production permission system
+- no ranking redesign
