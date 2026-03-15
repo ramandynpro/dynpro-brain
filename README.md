@@ -162,6 +162,63 @@ The KPI snapshot includes:
 In Streamlit, after running a search, the latest `request_id` is shown in a small feedback form so pilot users can quickly submit trust/usefulness notes.
 There is also a simple **Pilot Admin View (Phase 1)** at the bottom of the app that shows KPI summary, recent requests, and recent feedback.
 
+
+## Pilot CSV intake template and importer (Phase 1 simple)
+
+This is a local-only pilot intake utility to load real pilot people data into the existing canonical `person.json` shape.
+
+### CSV columns to use
+
+Use `data/pilot_csv/pilot_intake_template.csv` as your starter file.
+
+Required core columns (must be present and populated on each row):
+- `person_id`
+- `full_name`
+- `current_role`
+- `home_location`
+- `timezone`
+- `internal_external`
+- `practice`
+- `source_type`
+- `source_system`
+- `source_record_id`
+
+Recommended optional columns:
+- `summary`
+- `interviewer_suitable`
+- `willing_to_interview`
+- `prior_interview_count`
+- `client_facing_comfort`
+- `top_clients` (use `|` between values)
+- `top_domains` (use `|` between values)
+- `willing_to_support_pocs`
+- `poc_participation_count`
+- `presales_participation_count`
+- `profile_confidence`
+- `profile_last_updated_at`
+- `last_verified_at`
+
+A ready-to-copy example with 4 rows is in `data/pilot_csv/example_pilot_people.csv`.
+
+### How to import a pilot CSV file
+
+From the repo root:
+
+```bash
+python -m backend.app.services.pilot_csv_importer \
+  --input data/pilot_csv/example_pilot_people.csv \
+  --output data/sample_json/person.imported.json
+```
+
+What this importer does (and keeps simple for Phase 1):
+- reads a local CSV file only
+- validates required columns and required values
+- returns friendly row-level errors when a core field is missing or malformed
+- maps rows to the existing canonical person JSON shape
+- preserves `source_provenance` and `last_verified_at` when provided
+
+No auth, no production infrastructure, and no ETL pipeline are added.
+
 ## Notes
 
 - This is **not** production-ready.
