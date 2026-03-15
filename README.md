@@ -99,6 +99,29 @@ You will see recommendation(s) built from the sample JSON files in `data/sample_
 - next action
 
 
+
+## Leadership demo mode (Phase 1)
+
+Use this when you want a simple leadership walkthrough without changing ranking logic.
+
+1. Start backend and frontend as in steps 3 and 4 above.
+2. In the Streamlit app, switch **View** to **Leadership Demo**.
+3. Choose one of the five canned scenarios:
+   - Expert Finder
+   - Interviewer Finder
+   - Client/Domain Finder
+   - POC Support Finder
+   - Pod Builder
+4. Click **Run Demo Scenario** to execute the existing backend using a prefilled realistic request.
+5. Review the leadership-friendly output:
+   - request summary
+   - top recommendation or pod
+   - why it was recommended
+   - confidence/freshness summary
+   - constraints applied
+   - next action
+6. Use **Current Pilot KPIs** in the same view to show live pilot metrics from `/api/v1/pilot/kpi-summary`.
+
 ## Pilot request logging and feedback (Phase 1 simple)
 
 To support pilot usage, the backend now writes two local JSONL logs (no production infra):
