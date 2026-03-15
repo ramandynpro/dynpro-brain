@@ -19,6 +19,7 @@ class SampleDataBundle:
     people_data_sources: list[str]
     assignment_data_sources: list[str]
     skill_evidence_data_sources: list[str]
+    commercial_data_sources: list[str]
 
 
 @dataclass(frozen=True)
@@ -27,6 +28,7 @@ class SampleDataConfig:
     pilot_people_data_path: Path | None
     pilot_assignments_data_path: Path | None
     pilot_skill_evidence_data_path: Path | None
+    pilot_commercial_data_path: Path | None
 
 
 def _repo_root() -> Path:
@@ -57,11 +59,18 @@ def _resolve_sample_data_config() -> SampleDataConfig:
         if not pilot_skill_evidence_data_path.is_absolute():
             pilot_skill_evidence_data_path = repo_root / pilot_skill_evidence_data_path
 
+    pilot_commercial_data_path: Path | None = None
+    if settings.pilot_commercial_data_path:
+        pilot_commercial_data_path = Path(settings.pilot_commercial_data_path)
+        if not pilot_commercial_data_path.is_absolute():
+            pilot_commercial_data_path = repo_root / pilot_commercial_data_path
+
     return SampleDataConfig(
         sample_data_dir=sample_data_dir,
         pilot_people_data_path=pilot_people_data_path,
         pilot_assignments_data_path=pilot_assignments_data_path,
         pilot_skill_evidence_data_path=pilot_skill_evidence_data_path,
+        pilot_commercial_data_path=pilot_commercial_data_path,
     )
 
 
@@ -127,7 +136,7 @@ def _merge_assignment_records(
 def load_sample_data() -> SampleDataBundle:
     """
     Load Phase-1 local JSON once per process.
-    Supports sample data and optional pilot people, assignment/project, and skill-evidence files from CSV importer output.
+    Supports sample data and optional pilot people, assignment/project, skill-evidence, and commercial files from CSV importer output.
     """
 
     data_config = _resolve_sample_data_config()
@@ -168,15 +177,28 @@ def load_sample_data() -> SampleDataBundle:
     else:
         skill_evidence = sample_skill_evidence
 
+    sample_commercial_profiles = _load_json_array(sample_dir / "commercial_profile.json")
+    commercial_data_sources = ["sample"]
+    if data_config.pilot_commercial_data_path and data_config.pilot_commercial_data_path.exists():
+        pilot_commercial_profiles = _load_json_array(data_config.pilot_commercial_data_path)
+        commercial_profiles = _merge_commercial_records(
+            sample_commercial_profiles=sample_commercial_profiles,
+            pilot_commercial_profiles=pilot_commercial_profiles,
+        )
+        commercial_data_sources.append("pilot")
+    else:
+        commercial_profiles = sample_commercial_profiles
+
     return SampleDataBundle(
         people=people,
         skill_evidence=skill_evidence,
         assignments=assignments,
-        commercial_profiles=_load_json_array(sample_dir / "commercial_profile.json"),
+        commercial_profiles=commercial_profiles,
         relationship_edges=_load_json_array(sample_dir / "relationship_edge.json"),
         people_data_sources=people_data_sources,
         assignment_data_sources=assignment_data_sources,
         skill_evidence_data_sources=skill_evidence_data_sources,
+        commercial_data_sources=commercial_data_sources,
     )
 
 
@@ -197,5 +219,30 @@ def _merge_skill_evidence_records(
         if not evidence_id:
             continue
         merged_by_id[evidence_id] = evidence
+
+    return list(merged_by_id.values())
+
+
+def _commercial_profile_id(profile: dict[str, Any]) -> str:
+    return str(profile.get("commercial_profile_id") or profile.get("commercial_id") or "").strip()
+
+
+def _merge_commercial_records(
+    sample_commercial_profiles: list[dict[str, Any]],
+    pilot_commercial_profiles: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    merged_by_id: dict[str, dict[str, Any]] = {}
+
+    for profile in sample_commercial_profiles:
+        commercial_id = _commercial_profile_id(profile)
+        if not commercial_id:
+            continue
+        merged_by_id[commercial_id] = profile
+
+    for profile in pilot_commercial_profiles:
+        commercial_id = _commercial_profile_id(profile)
+        if not commercial_id:
+            continue
+        merged_by_id[commercial_id] = profile
 
     return list(merged_by_id.values())

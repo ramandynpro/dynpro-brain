@@ -353,6 +353,19 @@ def _effective_budget_limit(query: SearchQuery) -> float | None:
     return budget_limit
 
 
+def _commercial_bill_rate(commercial: dict | None) -> float | None:
+    if not commercial:
+        return None
+
+    for key in ["bill_rate_usd", "target_bill_rate", "bill_rate"]:
+        value = commercial.get(key)
+        if value in (None, ""):
+            continue
+        return float(value)
+
+    return None
+
+
 def _matches_common_filters(
     person: dict,
     assignments: list[dict],
@@ -433,7 +446,7 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
 
         availability_percent = int((commercial or {}).get("availability_percent", 0))
         available_from_date = _parse_iso_date((commercial or {}).get("effective_from"))
-        bill_rate = float((commercial or {}).get("bill_rate_usd", 0)) if commercial else None
+        bill_rate = _commercial_bill_rate(commercial)
 
         budget_limit = _effective_budget_limit(query)
 
@@ -596,7 +609,7 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
             )
         if budget_boost > 0 and budget_limit is not None:
             why_recommended.append(
-                "Budget fit influenced ranking with a small boost (good fit to selected budget constraints)."
+                "Budget fit influenced ranking with a small boost (good fit to selected budget constraints using commercial-profile data)."
             )
         if client_domain_boost > 0:
             why_recommended.append(
@@ -636,6 +649,10 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
         ]
         if commercial and commercial.get("availability_note"):
             uncertainties.append(str(commercial["availability_note"]))
+        if commercial and commercial.get("engagement_model"):
+            uncertainties.append(
+                f"Commercial engagement model to validate: {commercial.get('engagement_model')}."
+            )
 
         recommendation = Recommendation(
                 person_id=person_id,
@@ -696,7 +713,7 @@ def build_pod_for_query(query: SearchQuery) -> dict:
 
         availability_percent = int((commercial or {}).get("availability_percent", 0) or 0)
         available_from_date = _parse_iso_date((commercial or {}).get("effective_from"))
-        bill_rate = float((commercial or {}).get("bill_rate_usd", 0) or 0)
+        bill_rate = _commercial_bill_rate(commercial) or 0
 
         if (
             query.minimum_available_percent is not None
@@ -841,7 +858,7 @@ def build_pod_for_query(query: SearchQuery) -> dict:
         )
 
     uncertainties = [
-        "Budget fit uses a simple sum of sample bill rates and may need finance validation.",
+        "Budget fit uses a simple sum of commercial-profile bill rates and may need finance validation.",
         "Role assignment is based on current-role text match and should be reviewed by a delivery lead.",
         "Availability can change quickly and should be re-confirmed before client commitment.",
     ]

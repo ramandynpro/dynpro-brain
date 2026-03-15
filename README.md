@@ -327,11 +327,59 @@ What this importer does (kept simple for Phase 1):
 
 No auth, no production infrastructure, and no ETL pipeline are added.
 
-## Run search with imported pilot people, assignment/project, and skill-evidence data (Phase 1 simple)
+
+## Pilot commercial-profile CSV intake and importer (Phase 1 simple)
+
+This is a local-only pilot intake utility to load real commercial profile data into the existing canonical `commercial_profile.json` shape for budget-fit support.
+
+### CSV columns to use
+
+Use `data/pilot_csv/commercial_profile_intake_template.csv` as your starter file.
+
+Required columns (must be present and populated on each row):
+- `commercial_id`
+- `person_id`
+- `engagement_model`
+- `currency`
+- `cost_rate` or `cost_rate_band`
+- `bill_rate` or `target_bill_rate`
+
+Recommended optional columns:
+- `bill_rate_band`
+- `availability_percent`
+- `availability_note`
+- `effective_from`
+- `confidence`
+- `source_type`
+- `source_system`
+- `source_record_id`
+
+A ready-to-copy example with 4 rows is in `data/pilot_csv/example_pilot_commercial_profile.csv`.
+
+### How to import a pilot commercial-profile CSV file
+
+From the repo root:
+
+```bash
+python -m backend.app.services.pilot_commercial_csv_importer \
+  --input data/pilot_csv/example_pilot_commercial_profile.csv \
+  --output data/sample_json/commercial_profile.imported.json
+```
+
+What this importer does (kept simple for Phase 1):
+- reads a local CSV file only
+- validates required columns and values with friendly row-level errors
+- maps rows into the canonical commercial profile JSON fields
+- keeps source provenance fields for explainability
+
+No auth, no production infrastructure, and no ETL pipeline are added.
+
+## Run search with imported pilot people, assignment/project, skill-evidence, and commercial data (Phase 1 simple)
 
 By default, search reads from:
 - `data/sample_json/person.json`
 - `data/sample_json/assignment_project.json`
+- `data/sample_json/commercial_profile.json`
 
 If you want search/ranking to include imported pilot files alongside sample data:
 
@@ -359,31 +407,42 @@ python -m backend.app.services.pilot_skill_evidence_csv_importer \
   --output data/sample_json/skill_evidence.imported.json
 ```
 
-4. Start backend with optional pilot file paths:
+4. Import pilot commercial-profile CSV (example):
+
+```bash
+python -m backend.app.services.pilot_commercial_csv_importer \
+  --input data/pilot_csv/example_pilot_commercial_profile.csv \
+  --output data/sample_json/commercial_profile.imported.json
+```
+
+5. Start backend with optional pilot file paths:
 
 ```bash
 DYNPRO_PILOT_PEOPLE_PATH=data/sample_json/person.imported.json \
 DYNPRO_PILOT_ASSIGNMENTS_PATH=data/sample_json/assignment_project.imported.json \
 DYNPRO_PILOT_SKILL_EVIDENCE_PATH=data/sample_json/skill_evidence.imported.json \
+DYNPRO_PILOT_COMMERCIAL_PATH=data/sample_json/commercial_profile.imported.json \
 uvicorn backend.app.main:app --reload
 ```
 
-In results, the UI now shows a tiny data-source note for people data, assignment/project data, and skill evidence data: sample, pilot, or sample + pilot.
+In results, the UI now shows a tiny data-source note for people data, assignment/project data, skill evidence data, and commercial-profile data: sample, pilot, or sample + pilot.
 
 Optional configuration knobs:
 - `DYNPRO_SAMPLE_DATA_DIR` (default: `data/sample_json`)
 - `DYNPRO_PILOT_PEOPLE_PATH` (optional local JSON file from people importer)
 - `DYNPRO_PILOT_ASSIGNMENTS_PATH` (optional local JSON file from assignment/project importer)
 - `DYNPRO_PILOT_SKILL_EVIDENCE_PATH` (optional local JSON file from skill-evidence importer)
+- `DYNPRO_PILOT_COMMERCIAL_PATH` (optional local JSON file from commercial-profile importer)
 
 Simple behavior when both files are present:
-- search uses sample + pilot people together, sample + pilot assignment/project data together, and sample + pilot skill evidence together
+- search uses sample + pilot people together, sample + pilot assignment/project data together, sample + pilot skill evidence together, and sample + pilot commercial-profile data together
 - if the same `person_id` exists in people files, the pilot person record replaces the sample person record
 - if the same `assignment_id`/`project_id` exists in assignment/project files, the pilot assignment/project record replaces the sample one
 - if the same `evidence_id` exists in skill-evidence files, the pilot skill-evidence record replaces the sample one
+- if the same `commercial_profile_id`/`commercial_id` exists in commercial files, the pilot commercial record replaces the sample one
 - recommendations still use the same confidence/freshness logic and source provenance fields
 
-In the Streamlit UI, small data-source notes show whether people, assignment/project context, and skill evidence used sample data, pilot data, or both.
+In the Streamlit UI, small data-source notes show whether people, assignment/project context, skill evidence, and commercial profile data used sample data, pilot data, or both.
 
 ## Notes
 

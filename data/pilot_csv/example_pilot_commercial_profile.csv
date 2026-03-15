@@ -1,0 +1,5 @@
+commercial_id,person_id,engagement_model,cost_rate,cost_rate_band,bill_rate,target_bill_rate,bill_rate_band,currency,availability_percent,availability_note,effective_from,confidence,source_type,source_system,source_record_id
+pilot_comm_001,person_101,time_and_material,92,,145,,standard,USD,60,Available 3 days/week from April,2026-04-01,0.84,pilot_csv,pilot_finance_sheet,pilot_comm_001
+pilot_comm_002,person_102,fixed_price,,mid,118,,economy,USD,80,Rolling off in two weeks,2026-03-20,0.81,pilot_csv,pilot_finance_sheet,pilot_comm_002
+pilot_comm_003,person_103,time_and_material,76,,112,,economy,USD,100,Fully available for immediate start,2026-03-10,0.78,pilot_csv,pilot_finance_sheet,pilot_comm_003
+pilot_comm_004,person_104,managed_service,,high,,165,premium,USD,40,Limited capacity due to active pod support,2026-04-15,0.75,pilot_csv,pilot_finance_sheet,pilot_comm_004

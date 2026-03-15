@@ -10,6 +10,7 @@ class Settings(BaseModel):
     pilot_people_data_path: str | None = os.getenv("DYNPRO_PILOT_PEOPLE_PATH") or None
     pilot_assignments_data_path: str | None = os.getenv("DYNPRO_PILOT_ASSIGNMENTS_PATH") or None
     pilot_skill_evidence_data_path: str | None = os.getenv("DYNPRO_PILOT_SKILL_EVIDENCE_PATH") or None
+    pilot_commercial_data_path: str | None = os.getenv("DYNPRO_PILOT_COMMERCIAL_PATH") or None
 
 
 settings = Settings()
