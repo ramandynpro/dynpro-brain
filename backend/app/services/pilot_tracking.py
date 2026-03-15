@@ -1,19 +1,23 @@
 import json
 import uuid
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.models.pilot import (
     PilotDurationSummary,
     PilotFeedbackCreate,
     PilotFeedbackRecord,
+    DataQualityCoverageSummary,
+    DataQualityIssueExample,
+    PilotDataQualitySummary,
     PilotFeedbackSummary,
     PilotKpiSummary,
     PilotRecentResponse,
     PilotRequestLog,
 )
 from app.models.search import SearchQuery, SearchResponse
+from app.services.sample_data import load_sample_data
 
 DATA_DIR = Path(__file__).resolve().parents[3] / "data"
 REQUEST_LOG_PATH = DATA_DIR / "pilot_request_log.jsonl"
@@ -209,4 +213,173 @@ def get_kpi_summary(limit: int = 20) -> PilotKpiSummary:
         duration_summary=duration_summary,
         recent_requests=request_records[-limit:],
         recent_feedback=recent_feedback,
+    )
+
+
+def _as_non_empty_text(value: object) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _parse_iso_datetime(value: object) -> datetime | None:
+    text_value = _as_non_empty_text(value)
+    if not text_value:
+        return None
+    try:
+        normalized = text_value.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def get_data_quality_summary(
+    stale_profile_days: int = 90,
+    low_confidence_threshold: float = 0.6,
+    example_limit: int = 10,
+) -> PilotDataQualitySummary:
+    sample_data = load_sample_data()
+    people = sample_data.people
+
+    now = datetime.now(timezone.utc)
+    stale_cutoff = now - timedelta(days=stale_profile_days)
+
+    missing_required_profile_field_count = 0
+    missing_timezone_count = 0
+    missing_country_count = 0
+    missing_practice_count = 0
+    missing_availability_field_count = 0
+    missing_commercial_field_count = 0
+    low_confidence_profile_count = 0
+    stale_profile_count = 0
+
+    examples: list[DataQualityIssueExample] = []
+
+    for person in people:
+        issues: list[str] = []
+        person_id = _as_non_empty_text(person.get("person_id")) or "unknown_person"
+
+        required_fields = ["person_id", "full_name", "current_role", "profile_last_updated_at"]
+        missing_required = [field for field in required_fields if not _as_non_empty_text(person.get(field))]
+        if missing_required:
+            missing_required_profile_field_count += 1
+            issues.append(f"Missing required profile fields: {', '.join(missing_required)}")
+
+        timezone_value = _as_non_empty_text(person.get("timezone"))
+        if not timezone_value:
+            missing_timezone_count += 1
+            issues.append("Missing timezone")
+
+        home_location_value = _as_non_empty_text(person.get("home_location")).lower()
+        if not home_location_value:
+            missing_country_count += 1
+            issues.append("Missing country/home_location")
+
+        practice_value = _as_non_empty_text(person.get("practice"))
+        if not practice_value:
+            missing_practice_count += 1
+            issues.append("Missing practice")
+
+        availability_percent = person.get("availability_percent")
+        available_by_date = _as_non_empty_text(person.get("available_by_date"))
+        if availability_percent is None and not available_by_date:
+            missing_availability_field_count += 1
+            issues.append("Missing availability fields (availability_percent and available_by_date)")
+
+        bill_rate = person.get("bill_rate_usd")
+        budget_band = _as_non_empty_text(person.get("budget_band"))
+        if bill_rate is None and not budget_band:
+            missing_commercial_field_count += 1
+            issues.append("Missing commercial fields (bill_rate_usd and budget_band)")
+
+        profile_confidence = person.get("profile_confidence")
+        confidence_value = None
+        if isinstance(profile_confidence, (float, int)):
+            confidence_value = float(profile_confidence)
+        else:
+            text_profile_confidence = _as_non_empty_text(profile_confidence)
+            if text_profile_confidence:
+                try:
+                    confidence_value = float(text_profile_confidence)
+                except ValueError:
+                    confidence_value = None
+
+        if confidence_value is not None and confidence_value < low_confidence_threshold:
+            low_confidence_profile_count += 1
+            issues.append(f"Low profile confidence ({round(confidence_value, 2)})")
+
+        last_verified_at = _parse_iso_datetime(person.get("last_verified_at"))
+        if not last_verified_at or last_verified_at < stale_cutoff:
+            stale_profile_count += 1
+            if not last_verified_at:
+                issues.append("Stale profile: last_verified_at missing")
+            else:
+                issues.append("Stale profile: last_verified_at older than threshold")
+
+        if issues and len(examples) < example_limit:
+            examples.append(DataQualityIssueExample(record_type="person", record_id=person_id, issues=issues))
+
+    person_ids = {
+        _as_non_empty_text(person.get("person_id"))
+        for person in people
+        if _as_non_empty_text(person.get("person_id"))
+    }
+
+    assignments = sample_data.assignments
+    skill_evidence = sample_data.skill_evidence
+    relationship_edges = sample_data.relationship_edges
+    commercial_profiles = sample_data.commercial_profiles
+
+    assignments_missing_person_link = sum(
+        1
+        for assignment in assignments
+        if _as_non_empty_text(assignment.get("person_id")) not in person_ids
+    )
+    skill_evidence_missing_person_link = sum(
+        1
+        for evidence in skill_evidence
+        if _as_non_empty_text(evidence.get("person_id")) not in person_ids
+    )
+    relationship_edges_missing_person_link = sum(
+        1
+        for edge in relationship_edges
+        if _as_non_empty_text(edge.get("from_person_id")) not in person_ids
+        or _as_non_empty_text(edge.get("to_person_id")) not in person_ids
+    )
+    commercial_profiles_missing_person_link = sum(
+        1
+        for profile in commercial_profiles
+        if _as_non_empty_text(profile.get("person_id")) not in person_ids
+    )
+
+    return PilotDataQualitySummary(
+        people_loaded=len(people),
+        low_confidence_profile_count=low_confidence_profile_count,
+        stale_profile_count=stale_profile_count,
+        missing_required_profile_field_count=missing_required_profile_field_count,
+        missing_timezone_count=missing_timezone_count,
+        missing_country_count=missing_country_count,
+        missing_practice_count=missing_practice_count,
+        missing_availability_field_count=missing_availability_field_count,
+        missing_commercial_field_count=missing_commercial_field_count,
+        low_confidence_threshold=low_confidence_threshold,
+        stale_profile_days=stale_profile_days,
+        people_data_sources=sample_data.people_data_sources,
+        assignment_data_sources=sample_data.assignment_data_sources,
+        skill_evidence_data_sources=sample_data.skill_evidence_data_sources,
+        commercial_data_sources=sample_data.commercial_data_sources,
+        coverage=DataQualityCoverageSummary(
+            assignments_loaded=len(assignments),
+            assignments_missing_person_link=assignments_missing_person_link,
+            skill_evidence_loaded=len(skill_evidence),
+            skill_evidence_missing_person_link=skill_evidence_missing_person_link,
+            relationship_edges_loaded=len(relationship_edges),
+            relationship_edges_missing_person_link=relationship_edges_missing_person_link,
+            commercial_profiles_loaded=len(commercial_profiles),
+            commercial_profiles_missing_person_link=commercial_profiles_missing_person_link,
+        ),
+        example_problematic_records=examples,
     )

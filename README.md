@@ -162,6 +162,33 @@ The KPI snapshot includes:
 In Streamlit, after running a search, the latest `request_id` is shown in a small feedback form so pilot users can quickly submit trust/usefulness notes.
 There is also a simple **Pilot Admin View (Phase 1)** at the bottom of the app that shows KPI summary, recent requests, and recent feedback.
 
+## Data quality dashboard (Phase 1 hardening)
+
+A small data quality summary endpoint is now available for pilot hardening:
+- `GET /api/v1/pilot/data-quality`
+
+What it checks (kept transparent and simple):
+- missing required profile fields
+- missing timezone/country/practice
+- missing availability fields
+- missing commercial fields
+- low-confidence profiles (default threshold: `0.6`)
+- stale profiles based on `last_verified_at` (default threshold: `90` days)
+- simple related-data coverage counts and missing person-link checks for assignment/project, skill-evidence, relationship edges, and commercial profiles
+
+You can tune the endpoint using query params:
+- `stale_profile_days` (default `90`)
+- `low_confidence_threshold` (default `0.6`)
+- `example_limit` (default `10`)
+
+In Streamlit, switch **View** to **Data Quality** to see:
+- summary counts
+- stale profile count
+- low-confidence count
+- missing-field counts
+- related data coverage
+- a short list of example problematic records
+
 
 ## Pilot CSV intake template and importer (Phase 1 simple)
 

@@ -162,6 +162,40 @@ def render_leadership_demo_result(scenario: dict, payload: dict, data: dict) -> 
     st.caption(scenario["demo_note"])
 
 
+
+
+def render_data_quality_dashboard() -> dict:
+    response = requests.get(f"{API_BASE_URL}/api/v1/pilot/data-quality", timeout=20)
+    response.raise_for_status()
+    quality = response.json()
+
+    st.subheader("Data Quality Dashboard (Phase 1)")
+    st.caption("Simple pilot hardening checks across people and related pilot data.")
+
+    col_1, col_2, col_3 = st.columns(3)
+    col_1.metric("People loaded", quality.get("people_loaded", 0))
+    col_2.metric("Stale profiles", quality.get("stale_profile_count", 0))
+    col_3.metric("Low-confidence profiles", quality.get("low_confidence_profile_count", 0))
+
+    st.markdown("#### Missing-field counts")
+    missing_counts = {
+        "Missing required profile fields": quality.get("missing_required_profile_field_count", 0),
+        "Missing timezone": quality.get("missing_timezone_count", 0),
+        "Missing country/home_location": quality.get("missing_country_count", 0),
+        "Missing practice": quality.get("missing_practice_count", 0),
+        "Missing availability fields": quality.get("missing_availability_field_count", 0),
+        "Missing commercial fields": quality.get("missing_commercial_field_count", 0),
+    }
+    st.json(missing_counts)
+
+    st.markdown("#### Related pilot data coverage")
+    st.json(quality.get("coverage", {}))
+
+    st.markdown("#### Example problematic records")
+    st.dataframe(quality.get("example_problematic_records", []), use_container_width=True)
+
+    return quality
+
 def render_pilot_kpi(limit: int = 20) -> None:
     kpi_response = requests.get(f"{API_BASE_URL}/api/v1/pilot/kpi-summary", params={"limit": limit}, timeout=20)
     kpi_response.raise_for_status()
@@ -184,7 +218,17 @@ def render_pilot_kpi(limit: int = 20) -> None:
 st.title("DynPro Brain - Phase 1 MVP Scaffold")
 st.caption("Decision support for capability intelligence (human-in-the-loop).")
 
-view_mode = st.radio("View", ["Search", "Leadership Demo"], horizontal=True)
+view_mode = st.radio("View", ["Search", "Leadership Demo", "Data Quality"], horizontal=True)
+
+
+if view_mode == "Data Quality":
+    if st.button("Refresh Data Quality Dashboard"):
+        st.session_state["refresh_data_quality"] = True
+
+    if st.session_state.get("refresh_data_quality", True):
+        render_data_quality_dashboard()
+
+    st.stop()
 
 if view_mode == "Leadership Demo":
     st.subheader("Leadership Demo")
