@@ -1,0 +1,5 @@
+assignment_id,person_id,client,project_name,role,domain,start_date,end_date,project_summary,confidence,source_type,source_system,source_record_id
+pilot_assign_001,person_101,Orbit Insurance,Claims AI Triage Pilot,Solution Lead,Insurance,2026-01-06,2026-03-20,Led pilot squad for claims triage prototype and architecture decisions,0.86,pilot_csv,pilot_delivery_sheet,pilot_assign_001
+pilot_assign_002,person_102,Nova Payments,Payments Data Quality Stabilization,Senior Data Engineer,Payments,2025-11-11,2026-02-28,Built quality rules and pipeline monitoring for settlement reporting,0.82,pilot_csv,pilot_delivery_sheet,pilot_assign_002
+pilot_assign_003,person_104,FinBank,Risk Reporting Pod Setup,Delivery Manager,BFSI,2025-12-01,2026-03-01,Coordinated pod staffing and governance for risk reporting milestones,0.88,pilot_csv,pilot_delivery_sheet,pilot_assign_003
+pilot_assign_004,person_103,RetailBank,Regulatory QA Acceleration,QA Automation Engineer,BFSI,2026-01-15,2026-04-10,Automated regression coverage for data and API releases in reporting stack,0.79,pilot_csv,pilot_delivery_sheet,pilot_assign_004

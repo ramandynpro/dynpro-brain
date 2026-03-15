@@ -576,8 +576,16 @@ def rank_people_for_query(query: SearchQuery) -> list[Recommendation]:
             )
         if assignments:
             domains = ", ".join(sorted({a.get("domain", "unknown") for a in assignments}))
+            assignment_sources = sorted(
+                {
+                    str((a.get("source_provenance") or {}).get("source_type", "unknown")).strip().lower()
+                    or "unknown"
+                    for a in assignments
+                }
+            )
+            source_label = ", ".join(assignment_sources)
             why_recommended.append(
-                f"Recent assignment evidence found in domains: {domains}."
+                f"Recent assignment evidence found in domains: {domains} (sources: {source_label})."
             )
         if availability_percent > 0 or available_from_date:
             availability_detail = f"{availability_percent}% availability"
