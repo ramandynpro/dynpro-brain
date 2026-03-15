@@ -18,6 +18,7 @@ class SampleDataBundle:
     relationship_edges: list[dict[str, Any]]
     people_data_sources: list[str]
     assignment_data_sources: list[str]
+    skill_evidence_data_sources: list[str]
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,7 @@ class SampleDataConfig:
     sample_data_dir: Path
     pilot_people_data_path: Path | None
     pilot_assignments_data_path: Path | None
+    pilot_skill_evidence_data_path: Path | None
 
 
 def _repo_root() -> Path:
@@ -49,10 +51,17 @@ def _resolve_sample_data_config() -> SampleDataConfig:
         if not pilot_assignments_data_path.is_absolute():
             pilot_assignments_data_path = repo_root / pilot_assignments_data_path
 
+    pilot_skill_evidence_data_path: Path | None = None
+    if settings.pilot_skill_evidence_data_path:
+        pilot_skill_evidence_data_path = Path(settings.pilot_skill_evidence_data_path)
+        if not pilot_skill_evidence_data_path.is_absolute():
+            pilot_skill_evidence_data_path = repo_root / pilot_skill_evidence_data_path
+
     return SampleDataConfig(
         sample_data_dir=sample_data_dir,
         pilot_people_data_path=pilot_people_data_path,
         pilot_assignments_data_path=pilot_assignments_data_path,
+        pilot_skill_evidence_data_path=pilot_skill_evidence_data_path,
     )
 
 
@@ -89,6 +98,10 @@ def _assignment_id(assignment: dict[str, Any]) -> str:
     return str(assignment.get("project_id") or assignment.get("assignment_id") or "").strip()
 
 
+def _skill_evidence_id(evidence: dict[str, Any]) -> str:
+    return str(evidence.get("evidence_id") or evidence.get("skill_evidence_id") or "").strip()
+
+
 def _merge_assignment_records(
     sample_assignments: list[dict[str, Any]],
     pilot_assignments: list[dict[str, Any]],
@@ -114,7 +127,7 @@ def _merge_assignment_records(
 def load_sample_data() -> SampleDataBundle:
     """
     Load Phase-1 local JSON once per process.
-    Supports sample data and an optional pilot people file from CSV importer output.
+    Supports sample data and optional pilot people, assignment/project, and skill-evidence files from CSV importer output.
     """
 
     data_config = _resolve_sample_data_config()
@@ -131,6 +144,7 @@ def load_sample_data() -> SampleDataBundle:
         people = sample_people
 
     sample_assignments = _load_json_array(sample_dir / "assignment_project.json")
+    sample_skill_evidence = _load_json_array(sample_dir / "skill_evidence.json")
 
     assignment_data_sources = ["sample"]
     if data_config.pilot_assignments_data_path and data_config.pilot_assignments_data_path.exists():
@@ -143,12 +157,45 @@ def load_sample_data() -> SampleDataBundle:
     else:
         assignments = sample_assignments
 
+    skill_evidence_data_sources = ["sample"]
+    if data_config.pilot_skill_evidence_data_path and data_config.pilot_skill_evidence_data_path.exists():
+        pilot_skill_evidence = _load_json_array(data_config.pilot_skill_evidence_data_path)
+        skill_evidence = _merge_skill_evidence_records(
+            sample_skill_evidence=sample_skill_evidence,
+            pilot_skill_evidence=pilot_skill_evidence,
+        )
+        skill_evidence_data_sources.append("pilot")
+    else:
+        skill_evidence = sample_skill_evidence
+
     return SampleDataBundle(
         people=people,
-        skill_evidence=_load_json_array(sample_dir / "skill_evidence.json"),
+        skill_evidence=skill_evidence,
         assignments=assignments,
         commercial_profiles=_load_json_array(sample_dir / "commercial_profile.json"),
         relationship_edges=_load_json_array(sample_dir / "relationship_edge.json"),
         people_data_sources=people_data_sources,
         assignment_data_sources=assignment_data_sources,
+        skill_evidence_data_sources=skill_evidence_data_sources,
     )
+
+
+def _merge_skill_evidence_records(
+    sample_skill_evidence: list[dict[str, Any]],
+    pilot_skill_evidence: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    merged_by_id: dict[str, dict[str, Any]] = {}
+
+    for evidence in sample_skill_evidence:
+        evidence_id = _skill_evidence_id(evidence)
+        if not evidence_id:
+            continue
+        merged_by_id[evidence_id] = evidence
+
+    for evidence in pilot_skill_evidence:
+        evidence_id = _skill_evidence_id(evidence)
+        if not evidence_id:
+            continue
+        merged_by_id[evidence_id] = evidence
+
+    return list(merged_by_id.values())
