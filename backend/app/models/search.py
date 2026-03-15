@@ -35,6 +35,10 @@ class SearchQuery(BaseModel):
     worked_with_person_id: str | None = None
     worked_with_person_name: str | None = None
     prefer_people_who_worked_together: bool = False
+    viewer_mode: str = Field(
+        default="broad_user",
+        description="Phase 1 local governance mode: broad_user or commercial_aware.",
+    )
 
 
 class Recommendation(BaseModel):
@@ -62,4 +66,7 @@ class SearchResponse(BaseModel):
     assignment_data_sources: list[str] = Field(default_factory=list)
     skill_evidence_data_sources: list[str] = Field(default_factory=list)
     commercial_data_sources: list[str] = Field(default_factory=list)
+    viewer_mode: str = "broad_user"
+    commercial_masking_applied: bool = False
+    commercial_visibility_note: str | None = None
     notes: list[str]

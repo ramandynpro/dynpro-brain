@@ -105,6 +105,8 @@ def render_data_source_note(data: dict) -> None:
 def render_leadership_demo_result(scenario: dict, payload: dict, data: dict) -> None:
     st.markdown("### Request summary")
     st.write(payload["text_query"])
+    if data.get("commercial_visibility_note"):
+        st.info(data["commercial_visibility_note"])
 
     if scenario["workflow"] == "pod_builder" and data.get("pod_recommendation"):
         pod = data["pod_recommendation"]
@@ -185,6 +187,13 @@ st.title("DynPro Brain - Phase 1 MVP Scaffold")
 st.caption("Decision support for capability intelligence (human-in-the-loop).")
 
 view_mode = st.radio("View", ["Search", "Leadership Demo"], horizontal=True)
+viewer_mode = st.radio(
+    "Governance mode",
+    ["broad_user", "commercial_aware"],
+    horizontal=True,
+    help="Phase 1 local viewer mode only. broad_user masks exact commercial details; commercial_aware shows detailed commercial fields.",
+)
+st.caption(f"Commercial visibility mode: **{viewer_mode}**")
 
 if view_mode == "Leadership Demo":
     st.subheader("Leadership Demo")
@@ -228,6 +237,7 @@ if view_mode == "Leadership Demo":
             "pod_size": selected_scenario["payload"].get("pod_size", 3),
             "internal_external_preference": selected_scenario["payload"].get("internal_external_preference"),
             "budget_ceiling": selected_scenario["payload"].get("budget_ceiling"),
+            "viewer_mode": viewer_mode,
         }
         data = run_search(payload)
         render_data_source_note(data)
@@ -353,10 +363,13 @@ if st.button("Run Search"):
                 else internal_external_preference
             ),
             "budget_ceiling": budget_ceiling if budget_ceiling > 0 else None,
+            "viewer_mode": viewer_mode,
         }
         data = run_search(payload)
 
         render_data_source_note(data)
+        if data.get("commercial_visibility_note"):
+            st.info(data["commercial_visibility_note"])
 
         if workflow == "pod_builder" and data.get("pod_recommendation"):
             pod = data["pod_recommendation"]
@@ -367,9 +380,15 @@ if st.button("Run Search"):
                         f"### {person['full_name']} ({person['current_role']})"
                     )
                     st.write(f"Assigned role: **{person.get('assigned_role') or 'TBD'}**")
-                    st.write(
-                        f"Availability: {person['availability_percent']}% | Bill rate: {person['bill_rate_usd']}"
-                    )
+                    if data.get("commercial_masking_applied"):
+                        st.write(
+                            f"Availability: {person['availability_percent']}% | Budget fit band: {person.get('budget_band', 'masked')}"
+                        )
+                        st.caption("Commercial details intentionally masked in broad_user mode.")
+                    else:
+                        st.write(
+                            f"Availability: {person['availability_percent']}% | Bill rate: {person['bill_rate_usd']}"
+                        )
                     st.write(f"Matched skills: {person['matched_skills']}")
                     st.write(f"Matched roles: {person['matched_roles']}")
 
@@ -378,6 +397,8 @@ if st.button("Run Search"):
 
             st.markdown("### Budget Fit Summary")
             st.json(pod["budget_fit_summary"])
+            if data.get("commercial_masking_applied"):
+                st.caption("Exact commercial totals are intentionally masked in broad_user mode.")
 
             st.markdown("### Gaps")
             st.write(pod["gaps"] or ["No major gaps identified in this simple pass."])
@@ -400,6 +421,8 @@ if st.button("Run Search"):
             for rec in data["recommendations"]:
                 with st.container(border=True):
                     st.markdown(f"### {rec['full_name']} ({rec['role']})")
+                    if data.get("commercial_masking_applied"):
+                        st.caption("Commercial details intentionally masked in broad_user mode.")
                     st.write(f"Confidence: **{rec['confidence_score']}**")
                     st.write(f"Confidence band: **{rec['confidence_band'].upper()}**")
                     st.write(f"Evidence count: **{rec['evidence_count']}**")
