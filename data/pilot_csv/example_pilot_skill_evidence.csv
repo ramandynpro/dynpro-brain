@@ -1,0 +1,7 @@
+skill_evidence_id,person_id,skill,source,confidence,evidence_text,observed_at,workflow_tags,validated_by
+pilot_ev_001,person_001,Data Engineering,s3://pilot-docs/finbank/data-platform-summary.pdf,0.91,Led ingestion and quality architecture for a finance modernization pod.,2026-01-10,expert_finder|pod_builder,delivery_manager
+pilot_ev_002,person_002,Interviewing,s3://pilot-docs/hiring/interview-panel-notes.pdf,0.87,Ran structured interviews for senior data engineers.,2025-12-18,interviewer_finder,talent_lead
+pilot_ev_003,person_003,Stakeholder Management,s3://pilot-docs/retail/steerco-highlights.pdf,0.84,Owned client steering committee communications for a retail transformation.,2025-11-22,pod_builder|expert_finder,account_director
+pilot_ev_004,person_004,QA Automation,s3://pilot-docs/retail/qa-automation-rollout.pdf,0.79,Built regression automation for data reliability and release confidence.,2025-10-08,expert_finder|pod_builder,engineering_manager
+pilot_ev_005,person_005,Cloud Architecture,s3://pilot-docs/payer/cloud-target-state.pdf,0.88,Designed target-state cloud reference architecture for payer analytics.,2026-02-01,expert_finder|pod_builder,solution_architect
+pilot_ev_006,person_002,MLOps,s3://pilot-docs/mlops/model-ops-kickoff.pdf,0.85,Implemented model deployment guardrails and drift monitoring process.,2026-01-15,expert_finder|interviewer_finder,delivery_manager

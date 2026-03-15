@@ -285,7 +285,49 @@ What this importer does (kept simple for Phase 1):
 
 No auth, no production infrastructure, and no ETL pipeline are added.
 
-## Run search with imported pilot people and assignment/project data (Phase 1 simple)
+
+## Pilot skill-evidence CSV intake and importer (Phase 1 simple)
+
+This is a local-only pilot intake utility to load real skill evidence into the existing canonical `skill_evidence.json` shape.
+
+### CSV columns to use
+
+Use `data/pilot_csv/skill_evidence_intake_template.csv` as your starter file.
+
+Required columns (must be present and populated on each row):
+- `skill_evidence_id`
+- `person_id`
+- `skill`
+- `source`
+- `confidence`
+
+Recommended optional columns:
+- `evidence_text`
+- `observed_at`
+- `workflow_tags` (use `|` between values, defaults to `expert_finder|interviewer_finder|pod_builder`)
+- `validated_by`
+
+A ready-to-copy example with 6 rows is in `data/pilot_csv/example_pilot_skill_evidence.csv`.
+
+### How to import a pilot skill-evidence CSV file
+
+From the repo root:
+
+```bash
+python -m backend.app.services.pilot_skill_evidence_csv_importer \
+  --input data/pilot_csv/example_pilot_skill_evidence.csv \
+  --output data/sample_json/skill_evidence.imported.json
+```
+
+What this importer does (kept simple for Phase 1):
+- reads a local CSV file only
+- validates required columns and values with friendly row-level errors
+- maps rows into the canonical skill evidence JSON fields (`evidence_id`, `skill_name`, `source_uri`)
+- keeps workflow tags and provenance-ready metadata for explainability
+
+No auth, no production infrastructure, and no ETL pipeline are added.
+
+## Run search with imported pilot people, assignment/project, and skill-evidence data (Phase 1 simple)
 
 By default, search reads from:
 - `data/sample_json/person.json`
@@ -309,28 +351,39 @@ python -m backend.app.services.pilot_assignment_csv_importer \
   --output data/sample_json/assignment_project.imported.json
 ```
 
-3. Start backend with optional pilot file paths:
+3. Import pilot skill-evidence CSV (example):
+
+```bash
+python -m backend.app.services.pilot_skill_evidence_csv_importer \
+  --input data/pilot_csv/example_pilot_skill_evidence.csv \
+  --output data/sample_json/skill_evidence.imported.json
+```
+
+4. Start backend with optional pilot file paths:
 
 ```bash
 DYNPRO_PILOT_PEOPLE_PATH=data/sample_json/person.imported.json \
 DYNPRO_PILOT_ASSIGNMENTS_PATH=data/sample_json/assignment_project.imported.json \
+DYNPRO_PILOT_SKILL_EVIDENCE_PATH=data/sample_json/skill_evidence.imported.json \
 uvicorn backend.app.main:app --reload
 ```
 
-In results, the UI now shows a tiny data-source note for both people data and assignment/project data: sample, pilot, or sample + pilot.
+In results, the UI now shows a tiny data-source note for people data, assignment/project data, and skill evidence data: sample, pilot, or sample + pilot.
 
 Optional configuration knobs:
 - `DYNPRO_SAMPLE_DATA_DIR` (default: `data/sample_json`)
 - `DYNPRO_PILOT_PEOPLE_PATH` (optional local JSON file from people importer)
 - `DYNPRO_PILOT_ASSIGNMENTS_PATH` (optional local JSON file from assignment/project importer)
+- `DYNPRO_PILOT_SKILL_EVIDENCE_PATH` (optional local JSON file from skill-evidence importer)
 
 Simple behavior when both files are present:
-- search uses sample + pilot people together, and sample + pilot assignment/project data together
+- search uses sample + pilot people together, sample + pilot assignment/project data together, and sample + pilot skill evidence together
 - if the same `person_id` exists in people files, the pilot person record replaces the sample person record
 - if the same `assignment_id`/`project_id` exists in assignment/project files, the pilot assignment/project record replaces the sample one
+- if the same `evidence_id` exists in skill-evidence files, the pilot skill-evidence record replaces the sample one
 - recommendations still use the same confidence/freshness logic and source provenance fields
 
-In the Streamlit UI, small data-source notes show whether people and assignment/project context used sample data, pilot data, or both.
+In the Streamlit UI, small data-source notes show whether people, assignment/project context, and skill evidence used sample data, pilot data, or both.
 
 ## Notes
 
