@@ -5,6 +5,9 @@ import streamlit as st
 
 API_BASE_URL = st.sidebar.text_input("Backend URL", "http://localhost:8000")
 
+if "last_request_id" not in st.session_state:
+    st.session_state["last_request_id"] = None
+
 st.title("DynPro Brain - Phase 1 MVP Scaffold")
 st.caption("Decision support for capability intelligence (human-in-the-loop).")
 
@@ -122,6 +125,7 @@ if st.button("Run Search"):
         response = requests.post(f"{API_BASE_URL}/api/v1/search", json=payload, timeout=20)
         response.raise_for_status()
         data = response.json()
+        st.session_state["last_request_id"] = data.get("request_id")
 
         if workflow == "pod_builder" and data.get("pod_recommendation"):
             pod = data["pod_recommendation"]
@@ -182,3 +186,29 @@ if st.button("Run Search"):
 
         st.subheader("System Notes")
         st.write(data["notes"])
+
+
+if st.session_state.get("last_request_id"):
+    st.subheader("Pilot Feedback")
+    st.caption(f"Latest request ID: {st.session_state['last_request_id']}")
+
+    with st.form("pilot_feedback_form"):
+        useful_yes_no = st.radio("Was this useful?", options=["Yes", "No"], horizontal=True)
+        trust_rating = st.slider("Trust rating", min_value=1, max_value=5, value=3, step=1)
+        notes = st.text_area("Notes", height=80)
+        missed_person_or_gap = st.text_input("Missed person or gap")
+        submit_feedback = st.form_submit_button("Submit feedback")
+
+    if submit_feedback:
+        feedback_payload = {
+            "request_id": st.session_state["last_request_id"],
+            "useful_yes_no": useful_yes_no == "Yes",
+            "trust_rating": trust_rating,
+            "notes": notes.strip() or None,
+            "missed_person_or_gap": missed_person_or_gap.strip() or None,
+        }
+        feedback_response = requests.post(
+            f"{API_BASE_URL}/api/v1/pilot/feedback", json=feedback_payload, timeout=20
+        )
+        feedback_response.raise_for_status()
+        st.success("Thanks — pilot feedback captured.")

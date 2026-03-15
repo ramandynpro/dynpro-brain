@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.models.search import SearchQuery, SearchResponse
+from app.services.pilot_tracking import log_search_request
 from app.services.ranking import build_pod_for_query, rank_people_for_query
 
 router = APIRouter(tags=["search"])
@@ -18,7 +19,7 @@ def search_people(query: SearchQuery) -> SearchResponse:
         recommendations = []
         pod_recommendation = build_pod_for_query(query)
 
-    return SearchResponse(
+    response = SearchResponse(
         query=query,
         recommendations=recommendations,
         pod_recommendation=pod_recommendation,
@@ -28,3 +29,5 @@ def search_people(query: SearchQuery) -> SearchResponse:
             "Results currently come from local sample JSON while DB ingestion is being wired.",
         ],
     )
+    response.request_id = log_search_request(query=query, response=response)
+    return response

@@ -98,6 +98,35 @@ You will see recommendation(s) built from the sample JSON files in `data/sample_
 - uncertainties
 - next action
 
+
+## Pilot request logging and feedback (Phase 1 simple)
+
+To support pilot usage, the backend now writes two local JSONL logs (no production infra):
+- `data/pilot_request_log.jsonl`
+- `data/pilot_feedback_log.jsonl`
+
+What gets logged after each search/pod run:
+- request_id
+- timestamp
+- workflow
+- input summary
+- result count
+- top result ids
+- confidence summary (when available)
+
+Feedback capture is intentionally tiny for Phase 1:
+- request_id
+- useful_yes_no
+- trust_rating (1-5)
+- notes
+- missed_person_or_gap
+
+API endpoints:
+- `POST /api/v1/pilot/feedback` to submit feedback
+- `GET /api/v1/pilot/recent` to list recent request logs with feedback summaries
+
+In Streamlit, after running a search, the latest `request_id` is shown in a small feedback form so pilot users can quickly submit trust/usefulness notes.
+
 ## Notes
 
 - This is **not** production-ready.

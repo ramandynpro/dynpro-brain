@@ -54,6 +54,7 @@ class Recommendation(BaseModel):
 
 
 class SearchResponse(BaseModel):
+    request_id: str | None = None
     query: SearchQuery
     recommendations: list[Recommendation]
     pod_recommendation: dict | None = None
