@@ -5,11 +5,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.models.pilot import (
+    PilotAdminResponse,
     PilotFeedbackCreate,
     PilotFeedbackRecord,
     PilotFeedbackSummary,
+    PilotKpiSummary,
     PilotRecentResponse,
     PilotRequestLog,
+    PilotDurationSummary,
 )
 from app.models.search import SearchQuery, SearchResponse
 
@@ -144,3 +147,71 @@ def get_recent_requests_with_feedback(limit: int = 20) -> PilotRecentResponse:
         )
 
     return PilotRecentResponse(requests=requests, feedback_summaries=feedback_summaries)
+
+
+def _build_duration_summary(request_rows: list[dict]) -> PilotDurationSummary | None:
+    duration_field_candidates = ["duration_ms", "latency_ms", "processing_ms"]
+
+    for field_name in duration_field_candidates:
+        values: list[float] = []
+        for row in request_rows:
+            value = row.get(field_name)
+            if value is None:
+                continue
+            if isinstance(value, int | float):
+                values.append(float(value))
+
+        if values:
+            average_ms = sum(values) / len(values)
+            return PilotDurationSummary(
+                field_name=field_name,
+                sample_count=len(values),
+                average_ms=round(average_ms, 2),
+                min_ms=round(min(values), 2),
+                max_ms=round(max(values), 2),
+            )
+
+    return None
+
+
+def get_pilot_kpi_summary(recent_limit: int = 20) -> PilotAdminResponse:
+    request_rows = _read_jsonl(REQUEST_LOG_PATH)
+    feedback_rows = _read_jsonl(FEEDBACK_LOG_PATH)
+
+    requests = [PilotRequestLog.model_validate(row) for row in request_rows]
+    feedback = [PilotFeedbackRecord.model_validate(row) for row in feedback_rows]
+
+    requests_by_workflow: dict[str, int] = defaultdict(int)
+    for request in requests:
+        requests_by_workflow[request.workflow] += 1
+
+    average_trust_rating = None
+    useful_yes_rate = None
+    if feedback:
+        average_trust_rating = round(sum(item.trust_rating for item in feedback) / len(feedback), 2)
+        useful_yes_count = sum(1 for item in feedback if item.useful_yes_no)
+        useful_yes_rate = round(useful_yes_count / len(feedback), 2)
+
+    recent_feedback = feedback[-recent_limit:]
+    recent_missed_person_or_gap_count = sum(
+        1
+        for item in recent_feedback
+        if item.missed_person_or_gap and item.missed_person_or_gap.strip()
+    )
+
+    summary = PilotKpiSummary(
+        total_requests=len(requests),
+        requests_by_workflow=dict(sorted(requests_by_workflow.items())),
+        average_trust_rating=average_trust_rating,
+        useful_yes_rate=useful_yes_rate,
+        recent_missed_person_or_gap_count=recent_missed_person_or_gap_count,
+        pod_builder_request_count=requests_by_workflow.get("pod_builder", 0),
+        interviewer_finder_request_count=requests_by_workflow.get("interviewer_finder", 0),
+        duration_summary=_build_duration_summary(request_rows),
+    )
+
+    return PilotAdminResponse(
+        kpi_summary=summary,
+        recent_requests=requests[-recent_limit:],
+        recent_feedback=recent_feedback,
+    )

@@ -124,6 +124,20 @@ Feedback capture is intentionally tiny for Phase 1:
 API endpoints:
 - `POST /api/v1/pilot/feedback` to submit feedback
 - `GET /api/v1/pilot/recent` to list recent request logs with feedback summaries
+- `GET /api/v1/pilot/kpi` to return a simple pilot admin readout with:
+  - total requests
+  - requests by workflow
+  - average trust rating
+  - useful yes rate
+  - recent missed-person/gap count
+  - pod builder request count
+  - interviewer finder request count
+  - duration summary (only if timing fields already exist in request logs)
+
+In Streamlit, there is now a small **Pilot Admin Readout (Phase 1)** section that loads:
+- KPI summary
+- recent requests
+- recent feedback
 
 In Streamlit, after running a search, the latest `request_id` is shown in a small feedback form so pilot users can quickly submit trust/usefulness notes.
 

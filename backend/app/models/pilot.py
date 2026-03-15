@@ -36,3 +36,27 @@ class PilotRecentResponse(BaseModel):
     requests: list[PilotRequestLog]
     feedback_summaries: list[PilotFeedbackSummary]
 
+
+class PilotDurationSummary(BaseModel):
+    field_name: str
+    sample_count: int = Field(ge=0)
+    average_ms: float = Field(ge=0)
+    min_ms: float = Field(ge=0)
+    max_ms: float = Field(ge=0)
+
+
+class PilotKpiSummary(BaseModel):
+    total_requests: int = Field(ge=0)
+    requests_by_workflow: dict[str, int] = Field(default_factory=dict)
+    average_trust_rating: float | None = None
+    useful_yes_rate: float | None = None
+    recent_missed_person_or_gap_count: int = Field(ge=0)
+    pod_builder_request_count: int = Field(ge=0)
+    interviewer_finder_request_count: int = Field(ge=0)
+    duration_summary: PilotDurationSummary | None = None
+
+
+class PilotAdminResponse(BaseModel):
+    kpi_summary: PilotKpiSummary
+    recent_requests: list[PilotRequestLog]
+    recent_feedback: list[PilotFeedbackRecord]

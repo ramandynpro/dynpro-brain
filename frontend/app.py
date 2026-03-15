@@ -212,3 +212,38 @@ if st.session_state.get("last_request_id"):
         )
         feedback_response.raise_for_status()
         st.success("Thanks — pilot feedback captured.")
+
+
+st.divider()
+st.subheader("Pilot Admin Readout (Phase 1)")
+pilot_limit = st.slider("How many recent pilot rows to show", min_value=5, max_value=100, value=20, step=5)
+
+if st.button("Refresh pilot KPI summary"):
+    admin_response = requests.get(f"{API_BASE_URL}/api/v1/pilot/kpi", params={"limit": pilot_limit}, timeout=20)
+    admin_response.raise_for_status()
+    admin_data = admin_response.json()
+
+    kpi = admin_data["kpi_summary"]
+    st.markdown("### KPI Summary")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total requests", kpi["total_requests"])
+    col2.metric("Avg trust rating", kpi["average_trust_rating"] if kpi["average_trust_rating"] is not None else "N/A")
+    col3.metric("Useful yes rate", kpi["useful_yes_rate"] if kpi["useful_yes_rate"] is not None else "N/A")
+
+    col4, col5, col6 = st.columns(3)
+    col4.metric("Recent missed person/gap count", kpi["recent_missed_person_or_gap_count"])
+    col5.metric("Pod builder request count", kpi["pod_builder_request_count"])
+    col6.metric("Interviewer finder request count", kpi["interviewer_finder_request_count"])
+
+    st.markdown("### Requests by workflow")
+    st.json(kpi["requests_by_workflow"])
+
+    if kpi.get("duration_summary"):
+        st.markdown("### Duration summary")
+        st.json(kpi["duration_summary"])
+
+    st.markdown("### Recent requests")
+    st.dataframe(admin_data["recent_requests"], use_container_width=True)
+
+    st.markdown("### Recent feedback")
+    st.dataframe(admin_data["recent_feedback"], use_container_width=True)
