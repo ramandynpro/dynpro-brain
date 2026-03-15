@@ -3,3 +3,6 @@ __pycache__/
 .venv/
 .env
 .streamlit/
+
+# Local pilot logs
+data/pilot_*_log.jsonl
