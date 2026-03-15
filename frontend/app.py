@@ -92,12 +92,15 @@ def render_data_source_note(data: dict) -> None:
     data_sources = data.get("data_sources") or ["sample"]
     assignment_data_sources = data.get("assignment_data_sources") or ["sample"]
     skill_evidence_data_sources = data.get("skill_evidence_data_sources") or ["sample"]
+    commercial_data_sources = data.get("commercial_data_sources") or ["sample"]
     people_label = " + ".join(data_sources)
     assignment_label = " + ".join(assignment_data_sources)
     skill_evidence_label = " + ".join(skill_evidence_data_sources)
+    commercial_label = " + ".join(commercial_data_sources)
     st.caption(f"People data source: {people_label}")
     st.caption(f"Assignment/project data source: {assignment_label}")
     st.caption(f"Skill evidence data source: {skill_evidence_label}")
+    st.caption(f"Commercial-profile data source: {commercial_label}")
 
 def render_leadership_demo_result(scenario: dict, payload: dict, data: dict) -> None:
     st.markdown("### Request summary")

@@ -61,4 +61,5 @@ class SearchResponse(BaseModel):
     data_sources: list[str] = Field(default_factory=list)
     assignment_data_sources: list[str] = Field(default_factory=list)
     skill_evidence_data_sources: list[str] = Field(default_factory=list)
+    commercial_data_sources: list[str] = Field(default_factory=list)
     notes: list[str]
