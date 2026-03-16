@@ -509,7 +509,56 @@ if st.button("Run search", type="primary"):
         if data.get("commercial_visibility_note"):
             st.info(data["commercial_visibility_note"])
 
-        if workflow == "pod_builder" and data.get("pod_recommendation"):
+        has_recommendations = bool(data.get("recommendations"))
+        has_pod_recommendation = bool(data.get("pod_recommendation"))
+
+        if not has_recommendations and not has_pod_recommendation:
+            st.subheader("No recommendation returned")
+            st.write("No candidates matched the current constraints.")
+            st.caption(f"Workflow: `{workflow}`")
+
+            if payload.get("text_query"):
+                st.write(f"Query: {payload['text_query']}")
+
+            structured_filters = {
+                "skill_filters": payload.get("skill_filters"),
+                "domain_filters": payload.get("domain_filters"),
+                "client_name": payload.get("client_name"),
+                "domain_name": payload.get("domain_name"),
+                "worked_with_person_name": payload.get("worked_with_person_name"),
+                "internal_external": payload.get("internal_external"),
+                "country": payload.get("country"),
+                "timezone": payload.get("timezone"),
+                "practice": payload.get("practice"),
+                "minimum_available_percent": payload.get("minimum_available_percent"),
+                "max_bill_rate": payload.get("max_bill_rate"),
+                "budget_band": payload.get("budget_band"),
+                "interviewer_only": payload.get("interviewer_only"),
+                "minimum_prior_interview_count": payload.get("minimum_prior_interview_count"),
+                "poc_support_only": payload.get("poc_support_only"),
+                "minimum_client_facing_comfort": payload.get("minimum_client_facing_comfort"),
+                "minimum_poc_participation_count": payload.get("minimum_poc_participation_count"),
+                "available_by_date": payload.get("available_by_date"),
+                "required_skills": payload.get("required_skills"),
+                "desired_roles": payload.get("desired_roles"),
+                "pod_size": payload.get("pod_size"),
+                "internal_external_preference": payload.get("internal_external_preference"),
+                "budget_ceiling": payload.get("budget_ceiling"),
+            }
+            applied_filters = {k: v for k, v in structured_filters.items() if v not in (None, "", [], False)}
+            if applied_filters:
+                st.caption("Applied structured filters")
+                st.json(applied_filters)
+
+            if workflow == "client_domain_finder" and (
+                payload.get("client_name") or payload.get("domain_filters")
+            ):
+                st.caption(
+                    "The current sample dataset may not have matching client/domain history for these exact constraints."
+                )
+
+            st.info("Try relaxing skill, client, domain, availability, or budget filters.")
+        elif workflow == "pod_builder" and has_pod_recommendation:
             pod = data["pod_recommendation"]
             st.subheader("Pod Recommendation")
             for person in pod["recommended_people"]:
