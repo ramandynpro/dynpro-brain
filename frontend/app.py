@@ -93,14 +93,17 @@ def render_data_source_note(data: dict) -> None:
     assignment_data_sources = data.get("assignment_data_sources") or ["sample"]
     skill_evidence_data_sources = data.get("skill_evidence_data_sources") or ["sample"]
     commercial_data_sources = data.get("commercial_data_sources") or ["sample"]
+
     people_label = " + ".join(data_sources)
     assignment_label = " + ".join(assignment_data_sources)
     skill_evidence_label = " + ".join(skill_evidence_data_sources)
     commercial_label = " + ".join(commercial_data_sources)
+
     st.caption(f"People data source: {people_label}")
     st.caption(f"Assignment/project data source: {assignment_label}")
     st.caption(f"Skill evidence data source: {skill_evidence_label}")
     st.caption(f"Commercial-profile data source: {commercial_label}")
+
 
 def render_leadership_demo_result(scenario: dict, payload: dict, data: dict) -> None:
     st.markdown("### Request summary")
@@ -164,8 +167,45 @@ def render_leadership_demo_result(scenario: dict, payload: dict, data: dict) -> 
     st.caption(scenario["demo_note"])
 
 
-def render_pilot_kpi(limit: int = 20) -> None:
-    kpi_response = requests.get(f"{API_BASE_URL}/api/v1/pilot/kpi-summary", params={"limit": limit}, timeout=20)
+def render_data_quality_dashboard() -> dict:
+    response = requests.get(f"{API_BASE_URL}/api/v1/pilot/data-quality", timeout=20)
+    response.raise_for_status()
+    quality = response.json()
+
+    st.subheader("Data Quality Dashboard (Phase 1)")
+    st.caption("Simple pilot hardening checks across people and related pilot data.")
+
+    col_1, col_2, col_3 = st.columns(3)
+    col_1.metric("People loaded", quality.get("people_loaded", 0))
+    col_2.metric("Stale profiles", quality.get("stale_profile_count", 0))
+    col_3.metric("Low-confidence profiles", quality.get("low_confidence_profile_count", 0))
+
+    st.markdown("#### Missing-field counts")
+    missing_counts = {
+        "Missing required profile fields": quality.get("missing_required_profile_field_count", 0),
+        "Missing timezone": quality.get("missing_timezone_count", 0),
+        "Missing country/home_location": quality.get("missing_country_count", 0),
+        "Missing practice": quality.get("missing_practice_count", 0),
+        "Missing availability fields": quality.get("missing_availability_field_count", 0),
+        "Missing commercial fields": quality.get("missing_commercial_field_count", 0),
+    }
+    st.json(missing_counts)
+
+    st.markdown("#### Related pilot data coverage")
+    st.json(quality.get("coverage", {}))
+
+    st.markdown("#### Example problematic records")
+    st.dataframe(quality.get("example_problematic_records", []), use_container_width=True)
+
+    return quality
+
+
+def render_pilot_kpi(limit: int = 20) -> dict:
+    kpi_response = requests.get(
+        f"{API_BASE_URL}/api/v1/pilot/kpi-summary",
+        params={"limit": limit},
+        timeout=20,
+    )
     kpi_response.raise_for_status()
     kpi = kpi_response.json()
 
@@ -183,10 +223,11 @@ def render_pilot_kpi(limit: int = 20) -> None:
 
     return kpi
 
+
 st.title("DynPro Brain - Phase 1 MVP Scaffold")
 st.caption("Decision support for capability intelligence (human-in-the-loop).")
 
-view_mode = st.radio("View", ["Search", "Leadership Demo"], horizontal=True)
+view_mode = st.radio("View", ["Search", "Leadership Demo", "Data Quality"], horizontal=True)
 viewer_mode = st.radio(
     "Governance mode",
     ["broad_user", "commercial_aware"],
@@ -194,6 +235,15 @@ viewer_mode = st.radio(
     help="Phase 1 local viewer mode only. broad_user masks exact commercial details; commercial_aware shows detailed commercial fields.",
 )
 st.caption(f"Commercial visibility mode: **{viewer_mode}**")
+
+if view_mode == "Data Quality":
+    if st.button("Refresh Data Quality Dashboard"):
+        st.session_state["refresh_data_quality"] = True
+
+    if st.session_state.get("refresh_data_quality", True):
+        render_data_quality_dashboard()
+
+    st.stop()
 
 if view_mode == "Leadership Demo":
     st.subheader("Leadership Demo")
@@ -276,7 +326,11 @@ country = st.text_input("Country filter (exact, e.g., India)")
 timezone = st.text_input("Timezone filter (exact, e.g., IST)")
 practice = st.text_input("Practice filter (exact, e.g., Data & AI)")
 minimum_available_percent = st.slider(
-    "Minimum available percent", min_value=0, max_value=100, value=0, step=5
+    "Minimum available percent",
+    min_value=0,
+    max_value=100,
+    value=0,
+    step=5,
 )
 max_bill_rate = st.number_input(
     "Max bill rate (optional)",
@@ -297,7 +351,10 @@ if workflow == "pod_builder":
         ["Any", "internal", "external"],
     )
     budget_ceiling = st.number_input(
-        "Pod budget ceiling (estimated total)", min_value=0.0, value=0.0, step=10.0
+        "Pod budget ceiling (estimated total)",
+        min_value=0.0,
+        value=0.0,
+        step=10.0,
     )
 else:
     required_skills = ""
@@ -308,17 +365,28 @@ else:
 
 interviewer_only = st.checkbox("Interviewer only")
 minimum_prior_interview_count = st.number_input(
-    "Minimum prior interview count", min_value=0, value=0, step=1
+    "Minimum prior interview count",
+    min_value=0,
+    value=0,
+    step=1,
 )
 poc_support_only = st.checkbox("POC support only")
 minimum_client_facing_comfort = st.selectbox(
-    "Minimum client-facing comfort", ["Any", "low", "medium", "high"]
+    "Minimum client-facing comfort",
+    ["Any", "low", "medium", "high"],
 )
 minimum_poc_participation_count = st.number_input(
-    "Minimum POC participation count", min_value=0, value=0, step=1
+    "Minimum POC participation count",
+    min_value=0,
+    value=0,
+    step=1,
 )
 use_available_by_date = st.checkbox("Only include people available by a date")
-available_by_date = st.date_input("Available by date", value=date.today(), disabled=not use_available_by_date)
+available_by_date = st.date_input(
+    "Available by date",
+    value=date.today(),
+    disabled=not use_available_by_date,
+)
 
 if st.button("Run Search"):
     if not text_query.strip():
@@ -358,9 +426,7 @@ if st.button("Run Search"):
             "desired_roles": [r.strip() for r in desired_roles.split(",") if r.strip()],
             "pod_size": pod_size,
             "internal_external_preference": (
-                None
-                if internal_external_preference == "Any"
-                else internal_external_preference
+                None if internal_external_preference == "Any" else internal_external_preference
             ),
             "budget_ceiling": budget_ceiling if budget_ceiling > 0 else None,
             "viewer_mode": viewer_mode,
@@ -376,9 +442,7 @@ if st.button("Run Search"):
             st.subheader("Pod Recommendation")
             for person in pod["recommended_people"]:
                 with st.container(border=True):
-                    st.markdown(
-                        f"### {person['full_name']} ({person['current_role']})"
-                    )
+                    st.markdown(f"### {person['full_name']} ({person['current_role']})")
                     st.write(f"Assigned role: **{person.get('assigned_role') or 'TBD'}**")
                     if data.get("commercial_masking_applied"):
                         st.write(
@@ -441,7 +505,6 @@ if st.button("Run Search"):
         st.subheader("System Notes")
         st.write(data["notes"])
 
-
 if st.session_state.get("last_request_id"):
     st.subheader("Pilot Feedback")
     st.caption(f"Latest request ID: {st.session_state['last_request_id']}")
@@ -462,11 +525,12 @@ if st.session_state.get("last_request_id"):
             "missed_person_or_gap": missed_person_or_gap.strip() or None,
         }
         feedback_response = requests.post(
-            f"{API_BASE_URL}/api/v1/pilot/feedback", json=feedback_payload, timeout=20
+            f"{API_BASE_URL}/api/v1/pilot/feedback",
+            json=feedback_payload,
+            timeout=20,
         )
         feedback_response.raise_for_status()
         st.success("Thanks — pilot feedback captured.")
-
 
 st.divider()
 st.subheader("Pilot Admin View (Phase 1)")

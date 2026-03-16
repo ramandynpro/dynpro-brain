@@ -55,3 +55,40 @@ class PilotKpiSummary(BaseModel):
     duration_summary: PilotDurationSummary | None = None
     recent_requests: list[PilotRequestLog] = Field(default_factory=list)
     recent_feedback: list[PilotFeedbackRecord] = Field(default_factory=list)
+
+
+class DataQualityIssueExample(BaseModel):
+    record_type: str
+    record_id: str
+    issues: list[str] = Field(default_factory=list)
+
+
+class DataQualityCoverageSummary(BaseModel):
+    assignments_loaded: int = Field(ge=0)
+    assignments_missing_person_link: int = Field(ge=0)
+    skill_evidence_loaded: int = Field(ge=0)
+    skill_evidence_missing_person_link: int = Field(ge=0)
+    relationship_edges_loaded: int = Field(ge=0)
+    relationship_edges_missing_person_link: int = Field(ge=0)
+    commercial_profiles_loaded: int = Field(ge=0)
+    commercial_profiles_missing_person_link: int = Field(ge=0)
+
+
+class PilotDataQualitySummary(BaseModel):
+    people_loaded: int = Field(ge=0)
+    low_confidence_profile_count: int = Field(ge=0)
+    stale_profile_count: int = Field(ge=0)
+    missing_required_profile_field_count: int = Field(ge=0)
+    missing_timezone_count: int = Field(ge=0)
+    missing_country_count: int = Field(ge=0)
+    missing_practice_count: int = Field(ge=0)
+    missing_availability_field_count: int = Field(ge=0)
+    missing_commercial_field_count: int = Field(ge=0)
+    low_confidence_threshold: float
+    stale_profile_days: int = Field(ge=1)
+    people_data_sources: list[str] = Field(default_factory=list)
+    assignment_data_sources: list[str] = Field(default_factory=list)
+    skill_evidence_data_sources: list[str] = Field(default_factory=list)
+    commercial_data_sources: list[str] = Field(default_factory=list)
+    coverage: DataQualityCoverageSummary
+    example_problematic_records: list[DataQualityIssueExample] = Field(default_factory=list)
