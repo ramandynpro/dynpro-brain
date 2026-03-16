@@ -243,6 +243,13 @@ def get_data_quality_summary(
 ) -> PilotDataQualitySummary:
     sample_data = load_sample_data()
     people = sample_data.people
+    commercial_profiles = sample_data.commercial_profiles
+
+    commercial_profiles_by_person_id: dict[str, dict] = {}
+    for profile in commercial_profiles:
+        profile_person_id = _as_non_empty_text(profile.get("person_id"))
+        if profile_person_id and profile_person_id not in commercial_profiles_by_person_id:
+            commercial_profiles_by_person_id[profile_person_id] = profile
 
     now = datetime.now(timezone.utc)
     stale_cutoff = now - timedelta(days=stale_profile_days)
@@ -283,14 +290,23 @@ def get_data_quality_summary(
             missing_practice_count += 1
             issues.append("Missing practice")
 
-        availability_percent = person.get("availability_percent")
-        available_by_date = _as_non_empty_text(person.get("available_by_date"))
+        # Availability and commercial fields are sourced from linked commercial profiles.
+        linked_commercial_profile = commercial_profiles_by_person_id.get(person_id)
+
+        availability_percent = None
+        available_by_date = ""
+        if linked_commercial_profile:
+            availability_percent = linked_commercial_profile.get("availability_percent")
+            available_by_date = _as_non_empty_text(linked_commercial_profile.get("available_by_date"))
         if availability_percent is None and not available_by_date:
             missing_availability_field_count += 1
             issues.append("Missing availability fields (availability_percent and available_by_date)")
 
-        bill_rate = person.get("bill_rate_usd")
-        budget_band = _as_non_empty_text(person.get("budget_band"))
+        bill_rate = None
+        budget_band = ""
+        if linked_commercial_profile:
+            bill_rate = linked_commercial_profile.get("bill_rate_usd")
+            budget_band = _as_non_empty_text(linked_commercial_profile.get("budget_band"))
         if bill_rate is None and not budget_band:
             missing_commercial_field_count += 1
             issues.append("Missing commercial fields (bill_rate_usd and budget_band)")
@@ -331,8 +347,6 @@ def get_data_quality_summary(
     assignments = sample_data.assignments
     skill_evidence = sample_data.skill_evidence
     relationship_edges = sample_data.relationship_edges
-    commercial_profiles = sample_data.commercial_profiles
-
     assignments_missing_person_link = sum(
         1
         for assignment in assignments
