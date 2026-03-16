@@ -3,6 +3,8 @@ from datetime import date
 import requests
 import streamlit as st
 
+from leadership_demo import select_leadership_demo_result
+
 API_BASE_URL = st.sidebar.text_input("Backend URL", "http://localhost:8000")
 
 DEMO_SCENARIOS = [
@@ -111,8 +113,10 @@ def render_leadership_demo_result(scenario: dict, payload: dict, data: dict) -> 
     if data.get("commercial_visibility_note"):
         st.info(data["commercial_visibility_note"])
 
-    if scenario["workflow"] == "pod_builder" and data.get("pod_recommendation"):
-        pod = data["pod_recommendation"]
+    result_type, result = select_leadership_demo_result(scenario["workflow"], data)
+
+    if result_type == "pod":
+        pod = result or {}
         st.markdown("### Top recommendation or pod")
         st.write(
             ", ".join(person["full_name"] for person in pod.get("recommended_people", []))
@@ -134,8 +138,8 @@ def render_leadership_demo_result(scenario: dict, payload: dict, data: dict) -> 
 
         st.markdown("### Next action")
         st.info(pod.get("next_action", "Review with a delivery lead."))
-    else:
-        rec = data.get("recommendations", [{}])[0]
+    elif result_type == "recommendation":
+        rec = result or {}
         st.markdown("### Top recommendation or pod")
         st.write(f"{rec.get('full_name', 'No result')} ({rec.get('role', 'n/a')})")
 
@@ -162,6 +166,22 @@ def render_leadership_demo_result(scenario: dict, payload: dict, data: dict) -> 
 
         st.markdown("### Next action")
         st.info(rec.get("next_action", "Review candidate fit with a delivery lead."))
+    else:
+        st.markdown("### Top recommendation or pod")
+        st.write("No recommendation returned")
+
+        st.markdown("### Why it was recommended")
+        st.write("No candidates matched the current constraints.")
+
+        st.markdown("### Constraints applied")
+        st.json(data.get("query", {}))
+
+        if data.get("notes"):
+            st.markdown("### Notes")
+            st.write(data["notes"])
+
+        st.markdown("### Next action")
+        st.info("Try relaxing availability, budget, domain, or skill filters and rerun the scenario.")
 
     st.markdown("### What this demonstrates")
     st.caption(scenario["demo_note"])
