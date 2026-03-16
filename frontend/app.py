@@ -308,6 +308,9 @@ if view_mode == "Leadership Demo":
 if "selected_search_scenario" not in st.session_state:
     st.session_state["selected_search_scenario"] = SCENARIO_ORDER[0]
 
+if "pending_search_text_query" in st.session_state:
+    st.session_state["search_text_query"] = st.session_state.pop("pending_search_text_query")
+
 selected_search_scenario = st.session_state["selected_search_scenario"]
 selected_preset = SCENARIO_PRESETS[selected_search_scenario]
 workflow = selected_preset["workflow"]
@@ -332,7 +335,7 @@ for index, label in enumerate(SCENARIO_ORDER):
     button_label = f"{label} ✓" if is_selected else label
     if scenario_columns[index].button(button_label, use_container_width=True):
         st.session_state["selected_search_scenario"] = label
-        st.session_state["search_text_query"] = SCENARIO_PRESETS[label]["prompt"]
+        st.session_state["pending_search_text_query"] = SCENARIO_PRESETS[label]["prompt"]
         st.rerun()
 
 st.caption(f"Selected workflow: `{workflow}`")
