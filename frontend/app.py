@@ -3,6 +3,8 @@ from datetime import date
 import requests
 import streamlit as st
 
+from search_presets import SCENARIO_ORDER, SCENARIO_PRESETS
+
 API_BASE_URL = st.sidebar.text_input("Backend URL", "http://localhost:8000")
 
 DEMO_SCENARIOS = [
@@ -303,98 +305,121 @@ if view_mode == "Leadership Demo":
 
     st.stop()
 
-workflow = st.selectbox(
-    "Workflow",
-    [
-        "expert_finder",
-        "interviewer_finder",
-        "client_domain_finder",
-        "poc_support_finder",
-        "pod_builder",
-    ],
-)
-text_query = st.text_area("What are you trying to find?", height=100)
-skills = st.text_input("Skill filters (comma-separated)")
-domains = st.text_input("Domain filters (comma-separated)")
-client_name = st.text_input("Client name (e.g., FinBank)")
-domain_name = st.text_input("Domain name (e.g., BFSI)")
-worked_with_person_name = st.text_input("Worked with person name (optional)")
-prefer_people_who_worked_together = st.checkbox("Prefer people who worked together")
+if "selected_search_scenario" not in st.session_state:
+    st.session_state["selected_search_scenario"] = SCENARIO_ORDER[0]
 
-internal_external = st.selectbox("Internal/External", ["Any", "internal", "external"])
-country = st.text_input("Country filter (exact, e.g., India)")
-timezone = st.text_input("Timezone filter (exact, e.g., IST)")
-practice = st.text_input("Practice filter (exact, e.g., Data & AI)")
-minimum_available_percent = st.slider(
-    "Minimum available percent",
-    min_value=0,
-    max_value=100,
-    value=0,
-    step=5,
-)
-max_bill_rate = st.number_input(
-    "Max bill rate (optional)",
-    min_value=0.0,
-    value=0.0,
-    step=5.0,
-    help="Use this when you want budget-aware matching without showing raw commercial detail in results.",
-)
-budget_band = st.selectbox("Budget band", ["Any", "economy", "standard", "premium"])
+selected_search_scenario = st.session_state["selected_search_scenario"]
+selected_preset = SCENARIO_PRESETS[selected_search_scenario]
+workflow = selected_preset["workflow"]
 
-if workflow == "pod_builder":
-    st.subheader("Pod Builder Inputs")
-    required_skills = st.text_input("Required skills (comma-separated)")
-    desired_roles = st.text_input("Desired roles (comma-separated)")
-    pod_size = st.slider("Pod size", min_value=1, max_value=6, value=3, step=1)
-    internal_external_preference = st.selectbox(
-        "Internal/External preference",
-        ["Any", "internal", "external"],
+text_query = st.text_area(
+    "Ask DynPro Brain",
+    key="search_text_query",
+    height=120,
+    placeholder=(
+        "Who can interview a Workato delivery lead with client-facing experience?\n"
+        "Show me internal people in India who worked on Snowflake and Salesforce.\n"
+        "Build me a 4-person pod for a 6-week integration POC under this budget.\n"
+        "Who has worked at this client before?\n"
+        "Who is a strong adjacent fit if we cannot find an exact match?"
+    ),
+)
+st.caption("Type what you need in plain English. Add filters only if needed.")
+
+scenario_columns = st.columns(5)
+for index, label in enumerate(SCENARIO_ORDER):
+    is_selected = selected_search_scenario == label
+    button_label = f"{label} ✓" if is_selected else label
+    if scenario_columns[index].button(button_label, use_container_width=True):
+        st.session_state["selected_search_scenario"] = label
+        st.session_state["search_text_query"] = SCENARIO_PRESETS[label]["prompt"]
+        st.rerun()
+
+st.caption(f"Selected workflow: `{workflow}`")
+
+with st.expander("Advanced filters (optional)", expanded=False):
+    skills = st.text_input("Skill filters (comma-separated)")
+    domains = st.text_input("Domain filters (comma-separated)")
+    client_name = st.text_input("Client name (e.g., FinBank)")
+    domain_name = st.text_input("Domain name (e.g., BFSI)")
+    worked_with_person_name = st.text_input("Worked with person name (optional)")
+    prefer_people_who_worked_together = st.checkbox("Prefer people who worked together")
+
+    internal_external = st.selectbox("Internal/External", ["Any", "internal", "external"])
+    country = st.text_input("Country filter (exact, e.g., India)")
+    timezone = st.text_input("Timezone filter (exact, e.g., IST)")
+    practice = st.text_input("Practice filter (exact, e.g., Data & AI)")
+    minimum_available_percent = st.slider(
+        "Minimum available percent",
+        min_value=0,
+        max_value=100,
+        value=0,
+        step=5,
     )
-    budget_ceiling = st.number_input(
-        "Pod budget ceiling (estimated total)",
+    max_bill_rate = st.number_input(
+        "Max bill rate (optional)",
         min_value=0.0,
         value=0.0,
-        step=10.0,
+        step=5.0,
+        help="Use this when you want budget-aware matching without showing raw commercial detail in results.",
     )
-else:
-    required_skills = ""
-    desired_roles = ""
-    pod_size = 3
-    internal_external_preference = "Any"
-    budget_ceiling = 0.0
+    budget_band = st.selectbox("Budget band", ["Any", "economy", "standard", "premium"])
 
-interviewer_only = st.checkbox("Interviewer only")
-minimum_prior_interview_count = st.number_input(
-    "Minimum prior interview count",
-    min_value=0,
-    value=0,
-    step=1,
-)
-poc_support_only = st.checkbox("POC support only")
-minimum_client_facing_comfort = st.selectbox(
-    "Minimum client-facing comfort",
-    ["Any", "low", "medium", "high"],
-)
-minimum_poc_participation_count = st.number_input(
-    "Minimum POC participation count",
-    min_value=0,
-    value=0,
-    step=1,
-)
-use_available_by_date = st.checkbox("Only include people available by a date")
-available_by_date = st.date_input(
-    "Available by date",
-    value=date.today(),
-    disabled=not use_available_by_date,
-)
+    if workflow == "pod_builder":
+        st.subheader("Pod Builder Inputs")
+        required_skills = st.text_input("Required skills (comma-separated)")
+        desired_roles = st.text_input("Desired roles (comma-separated)")
+        pod_size = st.slider("Pod size", min_value=1, max_value=6, value=3, step=1)
+        internal_external_preference = st.selectbox(
+            "Internal/External preference",
+            ["Any", "internal", "external"],
+        )
+        budget_ceiling = st.number_input(
+            "Pod budget ceiling (estimated total)",
+            min_value=0.0,
+            value=0.0,
+            step=10.0,
+        )
+    else:
+        required_skills = ""
+        desired_roles = ""
+        pod_size = 3
+        internal_external_preference = "Any"
+        budget_ceiling = 0.0
 
-if st.button("Run Search"):
-    if not text_query.strip():
+    interviewer_only = st.checkbox("Interviewer only")
+    minimum_prior_interview_count = st.number_input(
+        "Minimum prior interview count",
+        min_value=0,
+        value=0,
+        step=1,
+    )
+    poc_support_only = st.checkbox("POC support only")
+    minimum_client_facing_comfort = st.selectbox(
+        "Minimum client-facing comfort",
+        ["Any", "low", "medium", "high"],
+    )
+    minimum_poc_participation_count = st.number_input(
+        "Minimum POC participation count",
+        min_value=0,
+        value=0,
+        step=1,
+    )
+    use_available_by_date = st.checkbox("Only include people available by a date")
+    available_by_date = st.date_input(
+        "Available by date",
+        value=date.today(),
+        disabled=not use_available_by_date,
+    )
+
+if st.button("Run search", type="primary"):
+    effective_query = text_query.strip() or selected_preset["prompt"]
+    if not effective_query.strip():
         st.warning("Please enter a query.")
     else:
         payload = {
             "workflow": workflow,
-            "text_query": text_query,
+            "text_query": effective_query,
             "skill_filters": [s.strip() for s in skills.split(",") if s.strip()],
             "domain_filters": [d.strip() for d in domains.split(",") if d.strip()],
             "internal_external": None if internal_external == "Any" else internal_external,
