@@ -20,6 +20,7 @@ class SampleDataBundle:
     assignment_data_sources: list[str]
     skill_evidence_data_sources: list[str]
     commercial_data_sources: list[str]
+    relationship_data_sources: list[str]
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,7 @@ class SampleDataConfig:
     pilot_assignments_data_path: Path | None
     pilot_skill_evidence_data_path: Path | None
     pilot_commercial_data_path: Path | None
+    pilot_relationship_data_path: Path | None
 
 
 def _repo_root() -> Path:
@@ -65,12 +67,19 @@ def _resolve_sample_data_config() -> SampleDataConfig:
         if not pilot_commercial_data_path.is_absolute():
             pilot_commercial_data_path = repo_root / pilot_commercial_data_path
 
+    pilot_relationship_data_path: Path | None = None
+    if settings.pilot_relationship_data_path:
+        pilot_relationship_data_path = Path(settings.pilot_relationship_data_path)
+        if not pilot_relationship_data_path.is_absolute():
+            pilot_relationship_data_path = repo_root / pilot_relationship_data_path
+
     return SampleDataConfig(
         sample_data_dir=sample_data_dir,
         pilot_people_data_path=pilot_people_data_path,
         pilot_assignments_data_path=pilot_assignments_data_path,
         pilot_skill_evidence_data_path=pilot_skill_evidence_data_path,
         pilot_commercial_data_path=pilot_commercial_data_path,
+        pilot_relationship_data_path=pilot_relationship_data_path,
     )
 
 
@@ -109,6 +118,31 @@ def _assignment_id(assignment: dict[str, Any]) -> str:
 
 def _skill_evidence_id(evidence: dict[str, Any]) -> str:
     return str(evidence.get("evidence_id") or evidence.get("skill_evidence_id") or "").strip()
+
+
+def _relationship_edge_id(edge: dict[str, Any]) -> str:
+    return str(edge.get("edge_id") or "").strip()
+
+
+def _merge_relationship_records(
+    sample_relationships: list[dict[str, Any]],
+    pilot_relationships: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    merged_by_id: dict[str, dict[str, Any]] = {}
+
+    for edge in sample_relationships:
+        edge_id = _relationship_edge_id(edge)
+        if not edge_id:
+            continue
+        merged_by_id[edge_id] = edge
+
+    for edge in pilot_relationships:
+        edge_id = _relationship_edge_id(edge)
+        if not edge_id:
+            continue
+        merged_by_id[edge_id] = edge
+
+    return list(merged_by_id.values())
 
 
 def _merge_assignment_records(
@@ -189,16 +223,29 @@ def load_sample_data() -> SampleDataBundle:
     else:
         commercial_profiles = sample_commercial_profiles
 
+    sample_relationships = _load_json_array(sample_dir / "relationship_edge.json")
+    relationship_data_sources = ["sample"]
+    if data_config.pilot_relationship_data_path and data_config.pilot_relationship_data_path.exists():
+        pilot_relationships = _load_json_array(data_config.pilot_relationship_data_path)
+        relationship_edges = _merge_relationship_records(
+            sample_relationships=sample_relationships,
+            pilot_relationships=pilot_relationships,
+        )
+        relationship_data_sources.append("pilot")
+    else:
+        relationship_edges = sample_relationships
+
     return SampleDataBundle(
         people=people,
         skill_evidence=skill_evidence,
         assignments=assignments,
         commercial_profiles=commercial_profiles,
-        relationship_edges=_load_json_array(sample_dir / "relationship_edge.json"),
+        relationship_edges=relationship_edges,
         people_data_sources=people_data_sources,
         assignment_data_sources=assignment_data_sources,
         skill_evidence_data_sources=skill_evidence_data_sources,
         commercial_data_sources=commercial_data_sources,
+        relationship_data_sources=relationship_data_sources,
     )
 
 

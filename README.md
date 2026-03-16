@@ -401,12 +401,56 @@ What this importer does (kept simple for Phase 1):
 
 No auth, no production infrastructure, and no ETL pipeline are added.
 
-## Run search with imported pilot people, assignment/project, skill-evidence, and commercial data (Phase 1 simple)
+## Pilot relationship-edge CSV intake and importer (Phase 1 simple)
+
+This is a local-only pilot intake utility to load relationship-edge evidence into the existing canonical `relationship_edge.json` shape.
+
+### CSV columns to use
+
+Use `data/pilot_csv/relationship_edge_intake_template.csv` as your starter file.
+
+Required columns (must be present and populated on each row):
+- `edge_id`
+- `from_person_id`
+- `to_person_id`
+- `relationship_type`
+
+Optional columns:
+- `context`
+- `strength`
+- `confidence`
+- `source_type`
+- `source_system`
+- `source_record_id`
+- `last_verified_at`
+
+A ready-to-copy example with 4 rows is in `data/pilot_csv/example_pilot_relationship_edge.csv`.
+
+### How to import a pilot relationship-edge CSV file
+
+From the repo root:
+
+```bash
+python -m backend.app.services.pilot_relationship_csv_importer \
+  --input data/pilot_csv/example_pilot_relationship_edge.csv \
+  --output data/sample_json/relationship_edge.imported.json
+```
+
+What this importer does (kept simple for Phase 1):
+- reads a local CSV file only
+- validates required columns and values with friendly row-level errors
+- maps rows into the canonical relationship-edge JSON fields
+- keeps source provenance fields for explainability
+
+No auth, no production infrastructure, and no ETL pipeline are added.
+
+## Run search with imported pilot people, assignment/project, skill-evidence, commercial, and relationship-edge data (Phase 1 simple)
 
 By default, search reads from:
 - `data/sample_json/person.json`
 - `data/sample_json/assignment_project.json`
 - `data/sample_json/commercial_profile.json`
+- `data/sample_json/relationship_edge.json`
 
 If you want search/ranking to include imported pilot files alongside sample data:
 
@@ -442,13 +486,22 @@ python -m backend.app.services.pilot_commercial_csv_importer \
   --output data/sample_json/commercial_profile.imported.json
 ```
 
-5. Start backend with optional pilot file paths:
+5. Import pilot relationship-edge CSV (example):
+
+```bash
+python -m backend.app.services.pilot_relationship_csv_importer \
+  --input data/pilot_csv/example_pilot_relationship_edge.csv \
+  --output data/sample_json/relationship_edge.imported.json
+```
+
+6. Start backend with optional pilot file paths:
 
 ```bash
 DYNPRO_PILOT_PEOPLE_PATH=data/sample_json/person.imported.json \
 DYNPRO_PILOT_ASSIGNMENTS_PATH=data/sample_json/assignment_project.imported.json \
 DYNPRO_PILOT_SKILL_EVIDENCE_PATH=data/sample_json/skill_evidence.imported.json \
 DYNPRO_PILOT_COMMERCIAL_PATH=data/sample_json/commercial_profile.imported.json \
+DYNPRO_PILOT_RELATIONSHIP_PATH=data/sample_json/relationship_edge.imported.json \
 uvicorn backend.app.main:app --reload
 ```
 
@@ -460,13 +513,15 @@ Optional configuration knobs:
 - `DYNPRO_PILOT_ASSIGNMENTS_PATH` (optional local JSON file from assignment/project importer)
 - `DYNPRO_PILOT_SKILL_EVIDENCE_PATH` (optional local JSON file from skill-evidence importer)
 - `DYNPRO_PILOT_COMMERCIAL_PATH` (optional local JSON file from commercial-profile importer)
+- `DYNPRO_PILOT_RELATIONSHIP_PATH` (optional local JSON file from relationship-edge importer)
 
 Simple behavior when both files are present:
-- search uses sample + pilot people together, sample + pilot assignment/project data together, sample + pilot skill evidence together, and sample + pilot commercial-profile data together
+- search uses sample + pilot people together, sample + pilot assignment/project data together, sample + pilot skill evidence together, and sample + pilot commercial-profile data together, and sample + pilot relationship-edge data together
 - if the same `person_id` exists in people files, the pilot person record replaces the sample person record
 - if the same `assignment_id`/`project_id` exists in assignment/project files, the pilot assignment/project record replaces the sample one
 - if the same `evidence_id` exists in skill-evidence files, the pilot skill-evidence record replaces the sample one
 - if the same `commercial_profile_id`/`commercial_id` exists in commercial files, the pilot commercial record replaces the sample one
+- if the same `edge_id` exists in relationship-edge files, the pilot relationship-edge record replaces the sample one
 - recommendations still use the same confidence/freshness logic and source provenance fields
 
 In the Streamlit UI, small data-source notes show whether people, assignment/project context, skill evidence, and commercial profile data used sample data, pilot data, or both.
