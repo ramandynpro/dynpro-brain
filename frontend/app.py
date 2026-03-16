@@ -5,6 +5,37 @@ import streamlit as st
 
 from search_presets import SCENARIO_ORDER, SCENARIO_PRESETS
 
+
+def build_search_filter_defaults(selected_preset: dict) -> dict:
+    default_payload = selected_preset.get("default_payload", {})
+    return {
+        "search_skills": ", ".join(default_payload.get("skill_filters", [])),
+        "search_domains": ", ".join(default_payload.get("domain_filters", [])),
+        "search_client_name": default_payload.get("client_name", ""),
+        "search_domain_name": default_payload.get("domain_name", ""),
+        "search_worked_with_person_name": default_payload.get("worked_with_person_name", ""),
+        "search_prefer_people_who_worked_together": default_payload.get("prefer_people_who_worked_together", False),
+        "search_internal_external": default_payload.get("internal_external") or "Any",
+        "search_country": default_payload.get("country", ""),
+        "search_timezone": default_payload.get("timezone", ""),
+        "search_practice": default_payload.get("practice", ""),
+        "search_minimum_available_percent": default_payload.get("minimum_available_percent", 0),
+        "search_max_bill_rate": default_payload.get("max_bill_rate", 0.0),
+        "search_budget_band": default_payload.get("budget_band") or "Any",
+        "search_required_skills": ", ".join(default_payload.get("required_skills", [])),
+        "search_desired_roles": ", ".join(default_payload.get("desired_roles", [])),
+        "search_pod_size": default_payload.get("pod_size", 3),
+        "search_internal_external_preference": default_payload.get("internal_external_preference") or "Any",
+        "search_budget_ceiling": default_payload.get("budget_ceiling", 0.0),
+        "search_interviewer_only": default_payload.get("interviewer_only", False),
+        "search_minimum_prior_interview_count": default_payload.get("minimum_prior_interview_count", 0),
+        "search_poc_support_only": default_payload.get("poc_support_only", False),
+        "search_minimum_client_facing_comfort": default_payload.get("minimum_client_facing_comfort") or "Any",
+        "search_minimum_poc_participation_count": default_payload.get("minimum_poc_participation_count", 0),
+        "search_use_available_by_date": bool(default_payload.get("available_by_date")),
+        "search_available_by_date": date.today(),
+    }
+
 API_BASE_URL = st.sidebar.text_input("Backend URL", "http://localhost:8000")
 
 DEMO_SCENARIOS = [
@@ -311,6 +342,10 @@ if "selected_search_scenario" not in st.session_state:
 if "pending_search_text_query" in st.session_state:
     st.session_state["search_text_query"] = st.session_state.pop("pending_search_text_query")
 
+if "pending_search_filters" in st.session_state:
+    for key, value in st.session_state.pop("pending_search_filters").items():
+        st.session_state[key] = value
+
 selected_search_scenario = st.session_state["selected_search_scenario"]
 selected_preset = SCENARIO_PRESETS[selected_search_scenario]
 workflow = selected_preset["workflow"]
@@ -336,82 +371,91 @@ for index, label in enumerate(SCENARIO_ORDER):
     if scenario_columns[index].button(button_label, use_container_width=True):
         st.session_state["selected_search_scenario"] = label
         st.session_state["pending_search_text_query"] = SCENARIO_PRESETS[label]["prompt"]
+        st.session_state["pending_search_filters"] = build_search_filter_defaults(SCENARIO_PRESETS[label])
         st.rerun()
 
 st.caption(f"Selected workflow: `{workflow}`")
+st.caption("Scenario defaults are active; open Advanced filters to review or override.")
+
+if "search_skills" not in st.session_state:
+    for key, value in build_search_filter_defaults(selected_preset).items():
+        st.session_state[key] = value
 
 with st.expander("Advanced filters (optional)", expanded=False):
-    skills = st.text_input("Skill filters (comma-separated)")
-    domains = st.text_input("Domain filters (comma-separated)")
-    client_name = st.text_input("Client name (e.g., FinBank)")
-    domain_name = st.text_input("Domain name (e.g., BFSI)")
-    worked_with_person_name = st.text_input("Worked with person name (optional)")
-    prefer_people_who_worked_together = st.checkbox("Prefer people who worked together")
+    skills = st.text_input("Skill filters (comma-separated)", key="search_skills")
+    domains = st.text_input("Domain filters (comma-separated)", key="search_domains")
+    client_name = st.text_input("Client name (e.g., FinBank)", key="search_client_name")
+    domain_name = st.text_input("Domain name (e.g., BFSI)", key="search_domain_name")
+    worked_with_person_name = st.text_input("Worked with person name (optional)", key="search_worked_with_person_name")
+    prefer_people_who_worked_together = st.checkbox("Prefer people who worked together", key="search_prefer_people_who_worked_together")
 
-    internal_external = st.selectbox("Internal/External", ["Any", "internal", "external"])
-    country = st.text_input("Country filter (exact, e.g., India)")
-    timezone = st.text_input("Timezone filter (exact, e.g., IST)")
-    practice = st.text_input("Practice filter (exact, e.g., Data & AI)")
+    internal_external = st.selectbox("Internal/External", ["Any", "internal", "external"], key="search_internal_external")
+    country = st.text_input("Country filter (exact, e.g., India)", key="search_country")
+    timezone = st.text_input("Timezone filter (exact, e.g., IST)", key="search_timezone")
+    practice = st.text_input("Practice filter (exact, e.g., Data & AI)", key="search_practice")
     minimum_available_percent = st.slider(
         "Minimum available percent",
         min_value=0,
         max_value=100,
-        value=0,
         step=5,
+        key="search_minimum_available_percent",
     )
     max_bill_rate = st.number_input(
         "Max bill rate (optional)",
         min_value=0.0,
-        value=0.0,
         step=5.0,
         help="Use this when you want budget-aware matching without showing raw commercial detail in results.",
+        key="search_max_bill_rate",
     )
-    budget_band = st.selectbox("Budget band", ["Any", "economy", "standard", "premium"])
+    budget_band = st.selectbox("Budget band", ["Any", "economy", "standard", "premium"], key="search_budget_band")
 
     if workflow == "pod_builder":
         st.subheader("Pod Builder Inputs")
-        required_skills = st.text_input("Required skills (comma-separated)")
-        desired_roles = st.text_input("Desired roles (comma-separated)")
-        pod_size = st.slider("Pod size", min_value=1, max_value=6, value=3, step=1)
+        required_skills = st.text_input("Required skills (comma-separated)", key="search_required_skills")
+        desired_roles = st.text_input("Desired roles (comma-separated)", key="search_desired_roles")
+        pod_size = st.slider("Pod size", min_value=1, max_value=6, step=1, key="search_pod_size")
         internal_external_preference = st.selectbox(
             "Internal/External preference",
             ["Any", "internal", "external"],
+            key="search_internal_external_preference",
         )
         budget_ceiling = st.number_input(
             "Pod budget ceiling (estimated total)",
             min_value=0.0,
-            value=0.0,
             step=10.0,
+            key="search_budget_ceiling",
         )
     else:
-        required_skills = ""
-        desired_roles = ""
-        pod_size = 3
-        internal_external_preference = "Any"
-        budget_ceiling = 0.0
+        required_skills = st.session_state.get("search_required_skills", "")
+        desired_roles = st.session_state.get("search_desired_roles", "")
+        pod_size = st.session_state.get("search_pod_size", 3)
+        internal_external_preference = st.session_state.get("search_internal_external_preference", "Any")
+        budget_ceiling = st.session_state.get("search_budget_ceiling", 0.0)
 
-    interviewer_only = st.checkbox("Interviewer only")
+    interviewer_only = st.checkbox("Interviewer only", key="search_interviewer_only")
     minimum_prior_interview_count = st.number_input(
         "Minimum prior interview count",
         min_value=0,
-        value=0,
         step=1,
+        key="search_minimum_prior_interview_count",
     )
-    poc_support_only = st.checkbox("POC support only")
+    poc_support_only = st.checkbox("POC support only", key="search_poc_support_only")
     minimum_client_facing_comfort = st.selectbox(
         "Minimum client-facing comfort",
         ["Any", "low", "medium", "high"],
+        key="search_minimum_client_facing_comfort",
     )
     minimum_poc_participation_count = st.number_input(
         "Minimum POC participation count",
         min_value=0,
-        value=0,
         step=1,
+        key="search_minimum_poc_participation_count",
     )
-    use_available_by_date = st.checkbox("Only include people available by a date")
+    use_available_by_date = st.checkbox("Only include people available by a date", key="search_use_available_by_date")
     available_by_date = st.date_input(
         "Available by date",
-        value=date.today(),
+        value=st.session_state.get("search_available_by_date", date.today()),
+        key="search_available_by_date",
         disabled=not use_available_by_date,
     )
 
