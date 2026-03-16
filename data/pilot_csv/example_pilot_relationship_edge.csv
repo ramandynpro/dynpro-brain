@@ -1,0 +1,5 @@
+edge_id,from_person_id,to_person_id,relationship_type,context,strength,confidence,source_type,source_system,source_record_id,last_verified_at
+rel-pilot-001,p-1001,p-1002,worked_with,Co-led cloud modernization delivery for BFSI client,0.92,0.90,pilot_csv,pilot_relationship_sheet,rel-row-001,2026-01-18
+rel-pilot-002,p-1002,p-1004,worked_with,Partnered on GenAI interview panel and technical calibration,0.84,0.88,pilot_csv,pilot_relationship_sheet,rel-row-002,2026-01-12
+rel-pilot-003,p-1003,p-1005,worked_with,Collaborated during data platform migration pod,0.79,0.82,pilot_csv,pilot_relationship_sheet,rel-row-003,2025-12-20
+rel-pilot-004,p-1001,p-1005,worked_with,Worked together on POC sprint for insurance analytics,0.87,0.86,pilot_csv,pilot_relationship_sheet,rel-row-004,2026-01-05
